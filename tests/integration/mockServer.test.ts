@@ -123,4 +123,24 @@ describe("mock server", () => {
 
     expect(res.headers["access-control-allow-origin"]).toBeUndefined();
   });
+
+  test("calls onRequestLogged once per request with method/path/status/durationMs", async () => {
+    const logged: { method: string; path: string; status: number; durationMs: number }[] = [];
+    const app = await buildApp([], { onRequestLogged: (entry) => logged.push(entry) });
+
+    await app.inject({ method: "GET", url: "/pets" });
+    await app.inject({ method: "POST", url: "/pets" });
+
+    expect(logged).toHaveLength(2);
+    expect(logged[0]).toMatchObject({ method: "GET", path: "/pets", status: 200 });
+    expect(logged[1]).toMatchObject({ method: "POST", path: "/pets", status: 201 });
+    expect(typeof logged[0]?.durationMs).toBe("number");
+  });
+
+  test("does not call onRequestLogged when it isn't provided", async () => {
+    // no callback passed — this just needs to not throw
+    const app = await buildApp();
+    const res = await app.inject({ method: "GET", url: "/pets" });
+    expect(res.statusCode).toBe(200);
+  });
 });

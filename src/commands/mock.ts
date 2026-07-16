@@ -7,6 +7,7 @@ import { loadConfig } from "../core/config/config.ts";
 import { loadOpenApiSpec, listOperations } from "../core/openapi/loader.ts";
 import { log } from "../core/logger.ts";
 import { loadOverrides } from "../mockServer/overrides.ts";
+import { formatMockRequestLog } from "../mockServer/requestLog.ts";
 import { buildMockServer } from "../mockServer/routerBuilder.ts";
 
 export interface MockOptions {
@@ -15,6 +16,7 @@ export interface MockOptions {
   allowLocal?: boolean;
   insecure?: boolean;
   cors?: boolean;
+  watch?: boolean;
 }
 
 function resolveOverridesPath(explicit: string | undefined): string | undefined {
@@ -37,6 +39,7 @@ export async function runMock(
   const allowLocal = options.allowLocal ?? config.allow_local ?? false;
   const insecure = options.insecure ?? config.insecure ?? false;
   const cors = options.cors ?? config.cors ?? true;
+  const watch = options.watch ?? config.watch ?? true;
   const overridesOption = options.overrides ?? config.overrides;
 
   log.dim(`Loading spec from ${specPath}...`);
@@ -48,7 +51,10 @@ export async function runMock(
     log.dim(`Using overrides from ${overridesPath}`);
   }
 
-  const app = buildMockServer(spec, overrides, { cors });
+  const app = buildMockServer(spec, overrides, {
+    cors,
+    onRequestLogged: watch ? (entry) => log.info(formatMockRequestLog(entry)) : undefined,
+  });
   try {
     await app.listen({ port });
   } catch (err) {
@@ -63,6 +69,9 @@ export async function runMock(
     const successCode =
       Object.keys(operation.responses ?? {}).find((code) => /^2\d\d$/.test(code)) ?? "204";
     log.dim(`  ${method.toUpperCase().padEnd(6)} ${path}  → ${successCode}`);
+  }
+  if (watch) {
+    log.dim("\nWatching for requests (--no-watch to disable)...");
   }
 
   return app;
@@ -96,5 +105,7 @@ export function registerMockCommand(program: Command): void {
       "enable permissive CORS headers (default; a browser frontend on another origin/port can call the mock directly)"
     )
     .option("--no-cors", "disable permissive CORS headers")
+    .option("--watch", "print a live log line for every incoming request (default)")
+    .option("--no-watch", "disable the live request log")
     .action(withErrorHandling(runMock));
 }

@@ -22,11 +22,22 @@ function pickResponse(
   return { status: Number(successCode), schema };
 }
 
+export interface MockRequestLogEntry {
+  method: string;
+  path: string;
+  status: number;
+  durationMs: number;
+}
+
 export interface BuildMockServerOptions {
   /** Send permissive CORS headers so a browser frontend on a different
    *  origin/port can call the mock server directly. On by default since
    *  that's the mock server's primary use case. */
   cors?: boolean;
+  /** Called once per request, after the response is sent — lets a caller
+   *  (the mock command) display a live traffic log without this module
+   *  needing to know anything about how it's presented. */
+  onRequestLogged?: (entry: MockRequestLogEntry) => void;
 }
 
 export function buildMockServer(
@@ -38,6 +49,19 @@ export function buildMockServer(
 
   if (options.cors ?? true) {
     void app.register(cors, { origin: true });
+  }
+
+  if (options.onRequestLogged) {
+    const onRequestLogged = options.onRequestLogged;
+    app.addHook("onResponse", (request, reply, done) => {
+      onRequestLogged({
+        method: request.method,
+        path: request.url,
+        status: reply.statusCode,
+        durationMs: reply.elapsedTime,
+      });
+      done();
+    });
   }
 
   for (const { path, method, operation } of listOperations(spec)) {

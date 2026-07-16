@@ -23,6 +23,7 @@ const MockConfigSchema = z.object({
   allow_local: z.boolean().optional(),
   insecure: z.boolean().optional(),
   cors: z.boolean().optional(),
+  watch: z.boolean().optional(),
 });
 
 const ConfigSchema = z.object({
