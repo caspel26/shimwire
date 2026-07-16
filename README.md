@@ -94,14 +94,15 @@ Launches an interactive menu — pick "Mock", "Generate", "Run", or "Init" and a
 
 Serves fake-but-schema-valid responses for every endpoint in a spec.
 
-| Flag                   | Default                                    | Description                                                                                       |
-| ---------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `[spec]`               | —                                          | Path or URL to an OpenAPI 3.x / Swagger 2.0 spec. Falls back to `[mock].spec` in config.          |
-| `-p, --port <port>`    | `4000`                                     | Port to listen on.                                                                                |
-| `--overrides <path>`   | `.shimwire/mock/overrides.toml` if present | Force specific status codes, bodies, or latency.                                                  |
-| `-l, --allow-local`    | off                                        | Allow fetching `spec` from localhost/private-network URLs (disables swagger-parser's SSRF guard). |
-| `-k, --insecure`       | off                                        | Skip TLS certificate verification while fetching `spec` (self-signed local certs).                |
-| `--cors` / `--no-cors` | CORS on                                    | Toggle permissive CORS headers.                                                                   |
+| Flag                     | Default                                    | Description                                                                                       |
+| ------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `[spec]`                 | —                                          | Path or URL to an OpenAPI 3.x / Swagger 2.0 spec. Falls back to `[mock].spec` in config.          |
+| `-p, --port <port>`      | `4000`                                     | Port to listen on.                                                                                |
+| `--overrides <path>`     | `.shimwire/mock/overrides.toml` if present | Force specific status codes, bodies, or latency.                                                  |
+| `-l, --allow-local`      | off                                        | Allow fetching `spec` from localhost/private-network URLs (disables swagger-parser's SSRF guard). |
+| `-k, --insecure`         | off                                        | Skip TLS certificate verification while fetching `spec` (self-signed local certs).                |
+| `--cors` / `--no-cors`   | CORS on                                    | Toggle permissive CORS headers.                                                                   |
+| `--watch` / `--no-watch` | watch on                                   | Toggle a live log line (time, method, path, status, duration) for every incoming request.         |
 
 ### `shimwire generate`
 
