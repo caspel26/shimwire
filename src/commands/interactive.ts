@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { confirm, input, select, Separator } from "@inquirer/prompts";
 import type { Theme } from "@inquirer/core";
+import boxen from "boxen";
 import type { Command } from "commander";
 import type { FastifyInstance } from "fastify";
 import pc from "picocolors";
@@ -44,17 +45,29 @@ const runningServers: { port: number; app: FastifyInstance }[] = [];
 let lastCollection: string | undefined;
 
 function banner(): void {
-  console.log();
-  console.log(pc.bold(pc.cyan("  ▸ shimwire")) + pc.dim("  — mock an API, or test a real one"));
-  if (runningServers.length > 0) {
-    const ports = runningServers.map((s) => s.port).join(", ");
-    console.log(pc.dim(`  mock server(s) running on port(s): ${ports}`));
-  }
-  console.log(pc.dim("  ─────────────────────────────────────────────"));
+  const tagline = pc.dim("mock an API, or test a real one");
+  const status =
+    runningServers.length > 0
+      ? "\n" +
+        pc.green("●") +
+        pc.dim(` mock running on port${runningServers.length > 1 ? "s" : ""} `) +
+        pc.green(runningServers.map((s) => s.port).join(", "))
+      : "";
+
+  console.log(
+    boxen(tagline + status, {
+      title: pc.bold(pc.cyan("shimwire")),
+      titleAlignment: "left",
+      padding: { left: 2, right: 2, top: 0, bottom: 0 },
+      margin: { top: 1, bottom: 1, left: 0, right: 0 },
+      borderStyle: "round",
+      borderColor: "cyan",
+    })
+  );
 }
 
 function divider(): void {
-  console.log(pc.dim("  ─────────────────────────────────────────────"));
+  console.log(pc.dim("  " + "─".repeat(45)));
 }
 
 async function pressEnterToContinue(): Promise<void> {
@@ -245,7 +258,6 @@ export function registerInteractiveCommand(program: Command): void {
           first = false;
           banner();
 
-          console.log();
           const action = await select({
             message: "What do you want to do?",
             theme,
