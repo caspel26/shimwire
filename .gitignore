@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Bun
+bun.lockb
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Compiled binaries (bun build --compile)
+/shimwire
+/shimwire-*
+
+# Env / local config
+.env
+.env.*
+.shimwire/env/*.toml
+!.shimwire/env/*.example.toml
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Test artifacts
+coverage/
