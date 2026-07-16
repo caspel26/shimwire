@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -131,5 +131,24 @@ path = "/does-not-exist"
     const exitCode = await proc.exited;
 
     expect(exitCode).toBe(1);
+  });
+
+  test("--report writes an HTML report covering every step", async () => {
+    const cwd = setupProject();
+    const reportPath = join(cwd, "report.html");
+
+    const proc = Bun.spawn(
+      ["bun", "run", CLI_PATH, "run", "users.toml", "--env", "dev", "--report", reportPath],
+      { cwd, stdout: "pipe", stderr: "pipe" }
+    );
+    const exitCode = await proc.exited;
+
+    expect(exitCode).toBe(0);
+    expect(existsSync(reportPath)).toBe(true);
+
+    const html = readFileSync(reportPath, "utf8");
+    expect(html).toContain("create_user");
+    expect(html).toContain("get_user");
+    expect(html).toContain("2 passed");
   });
 });

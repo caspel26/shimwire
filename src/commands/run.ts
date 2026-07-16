@@ -1,11 +1,13 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type { Command } from "commander";
 import pc from "picocolors";
 import { filterToTarget, topologicalSort } from "../core/collection/depGraph.ts";
 import { loadCollection, loadEnvironment } from "../core/collection/parser.ts";
 import { executeStep } from "../core/executor/httpClient.ts";
 import { formatError, formatResult } from "../core/executor/formatter.ts";
+import { renderHtmlReport, toReportEntry, type ReportEntry } from "../core/executor/htmlReport.ts";
 import { resolveString, type StepResult } from "../core/variables/resolver.ts";
 
 interface RunOptions {
@@ -13,6 +15,7 @@ interface RunOptions {
   only?: string;
   failOnError?: boolean;
   insecure?: boolean;
+  report?: string;
 }
 
 function resolveCollectionPath(input: string): string {
@@ -50,6 +53,10 @@ export function registerRunCommand(program: Command): void {
       "skip TLS certificate verification (self-signed/local dev certs)",
       false
     )
+    .option(
+      "-r, --report <path>",
+      "write an HTML report with full request/response detail for every step (sensitive headers redacted)"
+    )
     .action(async (collectionArg: string, options: RunOptions) => {
       const collectionPath = resolveCollectionPath(collectionArg);
       const envPath = resolveEnvPath(options.env);
@@ -63,6 +70,7 @@ export function registerRunCommand(program: Command): void {
       }
 
       const stepResults: Record<string, StepResult> = {};
+      const reportEntries: ReportEntry[] = [];
       let anyFailed = false;
       const baseUrl = resolveString(collection.meta.base_url, { env, steps: stepResults });
 
@@ -76,12 +84,30 @@ export function registerRunCommand(program: Command): void {
           );
           stepResults[step.id] = { status: result.status, response: result.response };
           console.log(formatResult(result));
+          reportEntries.push(toReportEntry(result));
           if (!result.ok) anyFailed = true;
         } catch (err) {
           anyFailed = true;
           const message = err instanceof Error ? err.message : String(err);
           console.log(formatError(step.id, message));
+          reportEntries.push({
+            id: step.id,
+            method: step.method,
+            path: step.path,
+            ok: false,
+            error: message,
+          });
         }
+      }
+
+      if (options.report) {
+        const html = renderHtmlReport(reportEntries, {
+          collection: collectionPath,
+          env: options.env,
+        });
+        await mkdir(dirname(options.report), { recursive: true });
+        await writeFile(options.report, html);
+        console.log(pc.dim(`\nReport written to ${options.report}`));
       }
 
       if (anyFailed && options.failOnError) {

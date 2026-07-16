@@ -8,6 +8,8 @@ export interface ExecutedRequest extends StepResult {
   path: string;
   durationMs: number;
   ok: boolean;
+  requestHeaders: Record<string, string>;
+  requestBody?: unknown;
 }
 
 function applyAuth(headers: Headers, auth: Auth, ctx: ResolverContext): void {
@@ -46,8 +48,9 @@ export async function executeStep(
   }
 
   let body: string | undefined;
+  let resolvedBody: unknown;
   if (step.body !== undefined) {
-    const resolvedBody = resolveValue(step.body, ctx);
+    resolvedBody = resolveValue(step.body, ctx);
     body = JSON.stringify(resolvedBody);
     if (!headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
@@ -76,5 +79,7 @@ export async function executeStep(
     response,
     durationMs,
     ok: res.ok,
+    requestHeaders: Object.fromEntries(headers.entries()),
+    requestBody: resolvedBody,
   };
 }
