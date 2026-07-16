@@ -9,7 +9,7 @@ Full design and phased rollout: [shimwire-implementation-plan.md](shimwire-imple
 
 ## Status
 
-Phase 0 and Phase 1 done. `shimwire init` and `shimwire run` (collection/env TOML parsing + Zod validation, `env./faker./steps.` variable resolver, topological dependency sort, fetch-based executor with bearer/basic/apiKey auth, `--only`, `--fail-on-error`) are implemented and tested. `src/mockServer/` and `src/commands/mock.ts`/`generate.ts` don't exist yet — that's Phase 2/3. Check what's actually in a directory before assuming the plan's full structure is populated.
+Phases 0–2 done. `shimwire init`, `shimwire run` (Phase 1), and `shimwire mock` (Phase 2 — OpenAPI loading via swagger-parser with `$ref` dereferencing, schema-aware fake generator respecting type/format/enum/min/max, fastify routerBuilder, TOML-based overrides for status codes and latency) are implemented and tested. `src/commands/generate.ts` doesn't exist yet — that's Phase 3. Check what's actually in a directory before assuming the plan's full structure is populated.
 
 ## Stack
 

@@ -9,7 +9,7 @@
 
 Both modes are powered by the same core engine — one OpenAPI parser, one schema-aware fake-data generator, one variable/templating resolver — so a mock server and a test collection for the same API never drift out of sync with each other.
 
-> **Status: early days.** `shimwire init` and `shimwire run` (chained requests, env/faker/steps variables, `--only`, `--fail-on-error`) work. Mock server and `generate` are not built yet. See [shimwire-implementation-plan.md](shimwire-implementation-plan.md) for the full architecture, phased build plan, and rationale. Star/watch the repo to follow progress — issues and design feedback are welcome.
+> **Status: early days.** `shimwire init`, `shimwire run` (chained requests, env/faker/steps variables, `--only`, `--fail-on-error`), and `shimwire mock` (schema-valid fake responses from an OpenAPI spec, with TOML overrides for status codes and latency) all work. `shimwire generate` is not built yet. See [shimwire-implementation-plan.md](shimwire-implementation-plan.md) for the full architecture, phased build plan, and rationale. Star/watch the repo to follow progress — issues and design feedback are welcome.
 
 ---
 
@@ -79,7 +79,7 @@ depends_on = ["create_user"]
 | ----- | ------------------------------------------------- | ------------------------------------------------------------------------ |
 | 0     | Project setup, CI, `shimwire init`                | ✅ Done                                                                  |
 | 1     | HTTP client / test runner (`shimwire run`)        | ✅ Done                                                                  |
-| 2     | OpenAPI-driven mock server (`shimwire mock`)      | Not started                                                              |
+| 2     | OpenAPI-driven mock server (`shimwire mock`)      | ✅ Done                                                                  |
 | 3     | Collection auto-scaffolding (`shimwire generate`) | Not started                                                              |
 | 4     | TUI                                               | Evaluated only if navigation becomes the real bottleneck after daily use |
 | 5     | Polish & distribution (binaries, npm, Homebrew)   | Not started                                                              |

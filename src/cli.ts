@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
 import { registerInitCommand } from "./commands/init.ts";
+import { registerMockCommand } from "./commands/mock.ts";
 import { registerRunCommand } from "./commands/run.ts";
 
 const program = new Command();
@@ -12,5 +13,6 @@ program
 
 registerInitCommand(program);
 registerRunCommand(program);
+registerMockCommand(program);
 
 program.parse();
