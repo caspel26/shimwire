@@ -9,13 +9,13 @@
 
 Both modes are powered by the same core engine — one OpenAPI parser, one schema-aware fake-data generator, one variable/templating resolver — so a mock server and a test collection for the same API never drift out of sync with each other.
 
-> **Status: pre-implementation.** This repo currently holds the design doc only. See [shimwire-implementation-plan.md](shimwire-implementation-plan.md) for the full architecture, phased build plan, and rationale. Star/watch the repo to follow progress — issues and design feedback are welcome even before code lands.
+> **Status: early days.** Phase 0 (project setup) is underway — `shimwire init` works, CI is wired up, nothing else yet. See [shimwire-implementation-plan.md](shimwire-implementation-plan.md) for the full architecture, phased build plan, and rationale. Star/watch the repo to follow progress — issues and design feedback are welcome.
 
 ---
 
 ## Why
 
-Postman/Insomnia-style tools lock collections into proprietary formats that don't diff cleanly in git and don't run well in CI. Meanwhile, mocking a backend usually means hand-rolling fixtures that quietly drift from the real API contract. If you already have an OpenAPI spec, both problems have the same fix: derive the mock *and* the test collection from that one source of truth.
+Postman/Insomnia-style tools lock collections into proprietary formats that don't diff cleanly in git and don't run well in CI. Meanwhile, mocking a backend usually means hand-rolling fixtures that quietly drift from the real API contract. If you already have an OpenAPI spec, both problems have the same fix: derive the mock _and_ the test collection from that one source of truth.
 
 - **Git-native** — collections and environments are plain TOML files, reviewable in a normal PR diff.
 - **CI-friendly** — `shimwire run` exits non-zero on failure, no separate CI runner or cloud sync needed.
@@ -75,14 +75,14 @@ depends_on = ["create_user"]
 
 ## Roadmap
 
-| Phase | What | Status |
-|---|---|---|
-| 0 | Project setup, CI, `shimwire init` | Not started |
-| 1 | HTTP client / test runner (`shimwire run`) | Not started |
-| 2 | OpenAPI-driven mock server (`shimwire mock`) | Not started |
-| 3 | Collection auto-scaffolding (`shimwire generate`) | Not started |
-| 4 | TUI | Evaluated only if navigation becomes the real bottleneck after daily use |
-| 5 | Polish & distribution (binaries, npm, Homebrew) | Not started |
+| Phase | What                                              | Status                                                                   |
+| ----- | ------------------------------------------------- | ------------------------------------------------------------------------ |
+| 0     | Project setup, CI, `shimwire init`                | ✅ Done                                                                  |
+| 1     | HTTP client / test runner (`shimwire run`)        | Not started                                                              |
+| 2     | OpenAPI-driven mock server (`shimwire mock`)      | Not started                                                              |
+| 3     | Collection auto-scaffolding (`shimwire generate`) | Not started                                                              |
+| 4     | TUI                                               | Evaluated only if navigation becomes the real bottleneck after daily use |
+| 5     | Polish & distribution (binaries, npm, Homebrew)   | Not started                                                              |
 
 Full details, exit criteria, and estimates: [shimwire-implementation-plan.md](shimwire-implementation-plan.md).
 

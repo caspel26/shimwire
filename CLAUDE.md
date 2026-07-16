@@ -1,6 +1,7 @@
 # shimwire
 
 A CLI tool with two modes sharing one engine:
+
 - **Mock mode**: generates a fake-but-schema-valid API server from an OpenAPI spec
 - **Client mode**: a scriptable, git-friendly HTTP test runner (collections as version-controlled TOML files, not a proprietary cloud format)
 
@@ -8,7 +9,7 @@ Full design and phased rollout: [shimwire-implementation-plan.md](shimwire-imple
 
 ## Status
 
-Pre-implementation. No source code exists yet — Phase 0 (project setup) has not started. Do not assume any `src/` structure is in place; check before referencing paths from the plan as if they exist.
+Phase 0 (project setup) in progress. `bun init`, ESLint/Prettier, CI, and `shimwire init` are done. `src/commands/`, `src/core/`, `src/mockServer/`, and `tests/` exist as directories but are largely empty — `run`, `mock`, and `generate` are not implemented yet. Check what's actually in a directory before assuming the plan's full structure is populated.
 
 ## Stack
 
