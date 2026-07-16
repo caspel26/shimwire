@@ -9,6 +9,8 @@ interface GenerateOptions {
   from: string;
   out: string;
   security?: string;
+  allowLocal?: boolean;
+  insecure?: boolean;
 }
 
 export function registerGenerateCommand(program: Command): void {
@@ -21,8 +23,21 @@ export function registerGenerateCommand(program: Command): void {
       "--security <schemeName>",
       "when an operation accepts multiple auth schemes, prefer this securitySchemes name"
     )
+    .option(
+      "--allow-local",
+      "allow fetching --from specs from localhost/private-network URLs (disables swagger-parser's SSRF guard)",
+      false
+    )
+    .option(
+      "-k, --insecure",
+      "skip TLS certificate verification while fetching --from (self-signed/local dev certs)",
+      false
+    )
     .action(async (options: GenerateOptions) => {
-      const spec = await loadOpenApiSpec(options.from);
+      const spec = await loadOpenApiSpec(options.from, {
+        allowLocal: options.allowLocal,
+        insecure: options.insecure,
+      });
       const { meta, requests, reviewNotes } = generateCollection(spec, {
         preferredSecurityScheme: options.security,
       });

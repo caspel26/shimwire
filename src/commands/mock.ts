@@ -9,6 +9,8 @@ import { buildMockServer } from "../mockServer/routerBuilder.ts";
 interface MockOptions {
   port: string;
   overrides?: string;
+  allowLocal?: boolean;
+  insecure?: boolean;
 }
 
 function resolveOverridesPath(explicit: string | undefined): string | undefined {
@@ -27,8 +29,21 @@ export function registerMockCommand(program: Command): void {
       "--overrides <path>",
       "path to an overrides.toml (defaults to .shimwire/mock/overrides.toml if present)"
     )
+    .option(
+      "--allow-local",
+      "allow fetching <spec> from localhost/private-network URLs (disables swagger-parser's SSRF guard)",
+      false
+    )
+    .option(
+      "-k, --insecure",
+      "skip TLS certificate verification while fetching <spec> (self-signed/local dev certs)",
+      false
+    )
     .action(async (specPath: string, options: MockOptions) => {
-      const spec = await loadOpenApiSpec(specPath);
+      const spec = await loadOpenApiSpec(specPath, {
+        allowLocal: options.allowLocal,
+        insecure: options.insecure,
+      });
       const overridesPath = resolveOverridesPath(options.overrides);
       const overrides = overridesPath ? await loadOverrides(overridesPath) : [];
 
