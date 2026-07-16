@@ -19,6 +19,22 @@ paths:
                   $ref: "#/components/schemas/Pet"
     post:
       operationId: createPet
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, status]
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 10
+                status:
+                  type: string
+                  enum: [available, pending, sold]
       responses:
         "201":
           description: Created
@@ -43,6 +59,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/Pet"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
   schemas:
     Pet:
       type: object

@@ -9,7 +9,7 @@ Full design and phased rollout: [shimwire-implementation-plan.md](shimwire-imple
 
 ## Status
 
-Phases 0–2 done. `shimwire init`, `shimwire run` (Phase 1), and `shimwire mock` (Phase 2 — OpenAPI loading via swagger-parser with `$ref` dereferencing, schema-aware fake generator respecting type/format/enum/min/max, fastify routerBuilder, TOML-based overrides for status codes and latency) are implemented and tested. `src/commands/generate.ts` doesn't exist yet — that's Phase 3. Check what's actually in a directory before assuming the plan's full structure is populated.
+Phases 0–3 done. `shimwire init`, `run` (Phase 1), `mock` (Phase 2), and `generate` (Phase 3 — auto-scaffolds a collection from an OpenAPI spec, with heuristic `depends_on` linking between a resource's POST and its `/{id}` operations, auth pre-fill from `securitySchemes` (bearer/basic/apiKey), and fake request bodies via the Phase 2 schema faker; unresolvable guesses are written as review-comment headers in the generated TOML) are all implemented and tested. Phase 4 (TUI) is explicitly deferred — don't build it unprompted. Phase 5 (polish/distribution binaries) hasn't started. Check what's actually in a directory before assuming the plan's full structure is populated.
 
 ## Stack
 

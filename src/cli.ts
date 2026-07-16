@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
+import { registerGenerateCommand } from "./commands/generate.ts";
 import { registerInitCommand } from "./commands/init.ts";
 import { registerMockCommand } from "./commands/mock.ts";
 import { registerRunCommand } from "./commands/run.ts";
@@ -14,5 +15,6 @@ program
 registerInitCommand(program);
 registerRunCommand(program);
 registerMockCommand(program);
+registerGenerateCommand(program);
 
 program.parse();
