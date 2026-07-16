@@ -1,3 +1,4 @@
+import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { OpenAPIV3 } from "openapi-types";
 import { listOperations } from "../core/openapi/loader.ts";
@@ -21,11 +22,23 @@ function pickResponse(
   return { status: Number(successCode), schema };
 }
 
+export interface BuildMockServerOptions {
+  /** Send permissive CORS headers so a browser frontend on a different
+   *  origin/port can call the mock server directly. On by default since
+   *  that's the mock server's primary use case. */
+  cors?: boolean;
+}
+
 export function buildMockServer(
   spec: OpenAPIV3.Document,
-  overrides: OverrideEntry[] = []
+  overrides: OverrideEntry[] = [],
+  options: BuildMockServerOptions = {}
 ): FastifyInstance {
   const app = Fastify({ logger: false });
+
+  if (options.cors ?? true) {
+    void app.register(cors, { origin: true });
+  }
 
   for (const { path, method, operation } of listOperations(spec)) {
     const fastifyPath = toFastifyPath(path);
@@ -42,18 +55,15 @@ export function buildMockServer(
           await new Promise((resolve) => setTimeout(resolve, override.latency_ms));
         }
 
-        if (override?.status !== undefined) {
-          reply.status(override.status);
-          return override.body ?? {};
-        }
-
-        if (!picked) {
+        const status = override?.status ?? picked?.status;
+        if (status === undefined) {
           reply.status(204);
           return null;
         }
 
-        reply.status(picked.status);
-        return picked.schema ? generateFakeValue(picked.schema) : {};
+        reply.status(status);
+        if (override?.body !== undefined) return override.body;
+        return picked?.schema ? generateFakeValue(picked.schema) : {};
       },
     });
   }

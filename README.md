@@ -49,6 +49,9 @@ shimwire run users.toml --env dev
 
 # wire into CI
 shimwire run smoke.toml --env staging --fail-on-error
+
+# get a readable HTML report instead of squinting at terminal lines
+shimwire run users.toml --env dev --report report.html
 ```
 
 A collection looks like this:
@@ -72,6 +75,37 @@ method = "GET"
 path = "/users/{{steps.create_user.response.id}}"
 depends_on = ["create_user"]
 ```
+
+## Testing a frontend against the mock server
+
+Point your frontend's API base URL at the mock server instead of a real backend:
+
+```bash
+shimwire mock openapi.yaml --port 4000
+```
+
+- **CORS is on by default** — a browser frontend running on a different origin/port (e.g. `localhost:3000` calling `localhost:4000`) works out of the box, including preflight `OPTIONS` requests. Pass `--no-cors` if you specifically want to test CORS failure handling in your frontend.
+- **Simulate edge cases** with `.shimwire/mock/overrides.toml` — force a specific status, inject artificial latency (loading states), or pin an exact response body, independently of each other:
+
+  ```toml
+  [[override]]
+  path = "/users/{id}"
+  method = "GET"
+  status = 404              # force a not-found state
+  when = "id == '999'"      # only for this specific id
+
+  [[override]]
+  path = "/users"
+  method = "GET"
+  latency_ms = 2000          # simulate a slow network without changing the response
+
+  [[override]]
+  path = "/users/{id}"
+  method = "GET"
+  body = { id = "1", name = "Ada Lovelace", status = "active" }  # pin an exact response
+  ```
+
+- Every other endpoint not covered by an override still returns schema-valid random data on every call, so your frontend gets realistic variety (different names, IDs, enum values) without you writing fixtures for all of it.
 
 ## Configuration
 
@@ -122,7 +156,13 @@ The tradeoff: Bun's Node-compatibility is very good but not perfect. For this pr
 
 ## Contributing
 
-Not yet open for contributions — there's no code to contribute to. Once Phase 0 lands, this section will cover setup and dev workflow. In the meantime, feedback on the design in the implementation plan is welcome via issues.
+```bash
+bun install
+bun test
+bun run lint
+```
+
+There's no formal contribution process yet (this is a solo side project in its early days), but issues and PRs are welcome — the codebase is small enough to read in one sitting: `src/core/` for the shared engine, `src/commands/` for the CLI surface, `src/mockServer/` for the fastify-based mock. See [shimwire-implementation-plan.md](shimwire-implementation-plan.md) for the design rationale before proposing anything structural.
 
 ## License
 

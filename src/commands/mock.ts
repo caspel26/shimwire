@@ -11,6 +11,7 @@ interface MockOptions {
   overrides?: string;
   allowLocal?: boolean;
   insecure?: boolean;
+  cors: boolean;
 }
 
 function resolveOverridesPath(explicit: string | undefined): string | undefined {
@@ -39,6 +40,10 @@ export function registerMockCommand(program: Command): void {
       "skip TLS certificate verification while fetching <spec> (self-signed/local dev certs)",
       false
     )
+    .option(
+      "--no-cors",
+      "disable permissive CORS headers (enabled by default so a browser frontend on another origin/port can call the mock directly)"
+    )
     .action(async (specPath: string, options: MockOptions) => {
       const spec = await loadOpenApiSpec(specPath, {
         allowLocal: options.allowLocal,
@@ -47,7 +52,7 @@ export function registerMockCommand(program: Command): void {
       const overridesPath = resolveOverridesPath(options.overrides);
       const overrides = overridesPath ? await loadOverrides(overridesPath) : [];
 
-      const app = buildMockServer(spec, overrides);
+      const app = buildMockServer(spec, overrides, { cors: options.cors });
       const port = Number(options.port);
       await app.listen({ port });
 
