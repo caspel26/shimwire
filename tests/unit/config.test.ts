@@ -47,4 +47,30 @@ report = ".shimwire/reports/latest.html"
     const config = await loadConfig(cwd);
     expect(config.run).toEqual({ report: ".shimwire/reports/latest.html" });
   });
+
+  test("parses a [mock] section", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "shimwire-config-test-"));
+    mkdirSync(join(cwd, ".shimwire"), { recursive: true });
+    writeFileSync(
+      join(cwd, ".shimwire", "config.toml"),
+      `[mock]
+spec = "https://localhost:8080/openapi.json"
+port = 4001
+overrides = ".shimwire/mock/overrides.toml"
+allow_local = true
+insecure = true
+cors = false
+`
+    );
+
+    const config = await loadConfig(cwd);
+    expect(config.mock).toEqual({
+      spec: "https://localhost:8080/openapi.json",
+      port: 4001,
+      overrides: ".shimwire/mock/overrides.toml",
+      allow_local: true,
+      insecure: true,
+      cors: false,
+    });
+  });
 });
