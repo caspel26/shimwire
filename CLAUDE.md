@@ -9,7 +9,7 @@ Full design and phased rollout: [shimwire-implementation-plan.md](shimwire-imple
 
 ## Status
 
-Phase 0 (project setup) in progress. `bun init`, ESLint/Prettier, CI, and `shimwire init` are done. `src/commands/`, `src/core/`, `src/mockServer/`, and `tests/` exist as directories but are largely empty — `run`, `mock`, and `generate` are not implemented yet. Check what's actually in a directory before assuming the plan's full structure is populated.
+Phase 0 and Phase 1 done. `shimwire init` and `shimwire run` (collection/env TOML parsing + Zod validation, `env./faker./steps.` variable resolver, topological dependency sort, fetch-based executor with bearer/basic/apiKey auth, `--only`, `--fail-on-error`) are implemented and tested. `src/mockServer/` and `src/commands/mock.ts`/`generate.ts` don't exist yet — that's Phase 2/3. Check what's actually in a directory before assuming the plan's full structure is populated.
 
 ## Stack
 

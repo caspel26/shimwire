@@ -1,0 +1,17 @@
+[meta]
+name = "Users API"
+base_url = "{{env.base_url}}"
+
+[[request]]
+id = "create_user"
+method = "POST"
+path = "/users"
+[request.body]
+name = "{{faker.person.fullName}}"
+email = "{{faker.internet.email}}"
+
+[[request]]
+id = "get_user"
+method = "GET"
+path = "/users/{{steps.create_user.response.id}}"
+depends_on = ["create_user"]

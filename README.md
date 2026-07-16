@@ -9,7 +9,7 @@
 
 Both modes are powered by the same core engine — one OpenAPI parser, one schema-aware fake-data generator, one variable/templating resolver — so a mock server and a test collection for the same API never drift out of sync with each other.
 
-> **Status: early days.** Phase 0 (project setup) is underway — `shimwire init` works, CI is wired up, nothing else yet. See [shimwire-implementation-plan.md](shimwire-implementation-plan.md) for the full architecture, phased build plan, and rationale. Star/watch the repo to follow progress — issues and design feedback are welcome.
+> **Status: early days.** `shimwire init` and `shimwire run` (chained requests, env/faker/steps variables, `--only`, `--fail-on-error`) work. Mock server and `generate` are not built yet. See [shimwire-implementation-plan.md](shimwire-implementation-plan.md) for the full architecture, phased build plan, and rationale. Star/watch the repo to follow progress — issues and design feedback are welcome.
 
 ---
 
@@ -78,7 +78,7 @@ depends_on = ["create_user"]
 | Phase | What                                              | Status                                                                   |
 | ----- | ------------------------------------------------- | ------------------------------------------------------------------------ |
 | 0     | Project setup, CI, `shimwire init`                | ✅ Done                                                                  |
-| 1     | HTTP client / test runner (`shimwire run`)        | Not started                                                              |
+| 1     | HTTP client / test runner (`shimwire run`)        | ✅ Done                                                                  |
 | 2     | OpenAPI-driven mock server (`shimwire mock`)      | Not started                                                              |
 | 3     | Collection auto-scaffolding (`shimwire generate`) | Not started                                                              |
 | 4     | TUI                                               | Evaluated only if navigation becomes the real bottleneck after daily use |
@@ -89,6 +89,15 @@ Full details, exit criteria, and estimates: [shimwire-implementation-plan.md](sh
 ## Stack
 
 TypeScript on [Bun](https://bun.sh) · `commander` · `fastify` · `@apidevtools/swagger-parser` · `@faker-js/faker` · `smol-toml` · `picocolors`
+
+**Why Bun instead of Node/npm?** They're not really the same category of tool — npm is a package manager for code that runs under Node, while Bun is a package manager _and_ a JS/TS runtime that replaces Node entirely. Reasons this project uses it specifically:
+
+- Native TypeScript execution — `bun run src/cli.ts` just works, no build step or `ts-node`/`tsx` in the dev loop.
+- Fast startup, which matters for a CLI invoked constantly, unlike a long-running server where startup cost is amortized.
+- Built-in test runner (`bun test`, Jest-compatible), no separate test dependency.
+- `bun build --compile` produces a single native binary per platform — the whole Phase 5 distribution story (download a binary, no Bun/Node install required to run it) depends on this.
+
+The tradeoff: Bun's Node-compatibility is very good but not perfect. For this project's dependency list (`commander`, `fastify`, `zod`, `@faker-js/faker`, `smol-toml` — all popular, well-maintained) that risk is low.
 
 ## Contributing
 
