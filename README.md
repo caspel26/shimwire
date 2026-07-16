@@ -79,7 +79,7 @@ depends_on = ["create_user"]
 
 ```bash
 # equivalent to: --from, --out, --security, --allow-local, --insecure
-shimwire generate -f openapi.yaml -o users.toml -s ManagerUserApiKeyAuth -lk
+shimwire generate -f openapi.yaml -o users.toml -s APIKeyAuth -lk
 ```
 
 ```toml
@@ -87,7 +87,7 @@ shimwire generate -f openapi.yaml -o users.toml -s ManagerUserApiKeyAuth -lk
 [generate]
 from = "https://localhost:8080/api/v2/openapi.json"
 out = ".shimwire/collections/api.toml"
-security = "ManagerUserApiKeyAuth"
+security = "APIKeyAuth"
 allow_local = true   # allow fetching --from specs from localhost/private-network URLs
 insecure = true       # skip TLS verification while fetching --from (self-signed local certs)
 ```
