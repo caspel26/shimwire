@@ -45,13 +45,29 @@ function deriveId(op: RouteOperation, seen: Set<string>): string {
   return id;
 }
 
-function baseResourcePath(path: string): string | undefined {
-  const match = path.match(/^(.*)\/\{[^}]+\}$/);
-  return match?.[1];
+interface PathParamOccurrence {
+  param: string;
+  /** The path up to (not including) this param's own `{param}` segment —
+   *  the resource that this specific param addresses, e.g. for
+   *  "/players/{uuid}/inventory/{id}" the "id" occurrence's resourceBase
+   *  is "/players/{uuid}/inventory", not "/players". */
+  resourceBase: string;
 }
 
-function pathParamNames(path: string): string[] {
-  return [...path.matchAll(/\{([^}]+)\}/g)].map((m) => m[1] as string);
+// A path can carry more than one param at different nesting depths (e.g.
+// "/players/{uuid}/inventory/{id}"), each addressing a different resource.
+// Resolving them independently — rather than picking one dependency for the
+// whole path — is what lets both a top-level and a nested resource link to
+// their own separate create step.
+function pathParamOccurrences(path: string): PathParamOccurrence[] {
+  const occurrences: PathParamOccurrence[] = [];
+  const regex = /\{([^}]+)\}/g;
+  for (const match of path.matchAll(regex)) {
+    const param = match[1] as string;
+    const prefix = path.slice(0, match.index);
+    occurrences.push({ param, resourceBase: prefix.replace(/\/$/, "") });
+  }
+  return occurrences;
 }
 
 function buildAuthBlock(
@@ -161,30 +177,24 @@ export function generateCollection(
 
   const requests: GeneratedRequest[] = withIds.map(({ op, id }) => {
     const { path, method, operation } = op;
-    const params = pathParamNames(path);
     let resolvedPath = path;
-    let depends_on: string[] | undefined;
+    const dependsOn = new Set<string>();
 
-    if (params.length > 0 && method !== "post") {
-      const base = baseResourcePath(path);
-      const createId = base ? createByBasePath.get(base) : undefined;
+    for (const { param, resourceBase } of pathParamOccurrences(path)) {
+      const createId = createByBasePath.get(resourceBase);
       if (createId && createId !== id) {
-        depends_on = [createId];
-        for (const param of params) {
-          resolvedPath = resolvedPath.replace(
-            `{${param}}`,
-            `{{steps.${createId}.response.${param}}}`
-          );
-        }
+        dependsOn.add(createId);
+        resolvedPath = resolvedPath.replace(
+          `{${param}}`,
+          `{{steps.${createId}.response.${param}}}`
+        );
         reviewNotes.push(
-          `"${id}" was guessed to depend on "${createId}" and assumes the response includes a matching "${params[0]}" field — please confirm.`
+          `"${id}" was guessed to depend on "${createId}" for its "${param}" path parameter, assuming the response includes a matching "${param}" field — please confirm.`
         );
       } else {
-        for (const param of params) {
-          resolvedPath = resolvedPath.replace(`{${param}}`, "REPLACE_ME");
-        }
+        resolvedPath = resolvedPath.replace(`{${param}}`, "REPLACE_ME");
         reviewNotes.push(
-          `"${id}" has an unresolved path parameter — replace "REPLACE_ME" in its path.`
+          `"${id}" has an unresolved "${param}" path parameter — replace "REPLACE_ME" in its path.`
         );
       }
     }
@@ -193,7 +203,7 @@ export function generateCollection(
     const body = requestBodyExample(operation);
 
     const request: GeneratedRequest = { id, method: method.toUpperCase(), path: resolvedPath };
-    if (depends_on) request.depends_on = depends_on;
+    if (dependsOn.size > 0) request.depends_on = [...dependsOn];
     if (auth) request.auth = auth;
     if (body !== undefined) request.body = body;
     return request;

@@ -14,6 +14,18 @@ import { runInit } from "./init.ts";
 import { runMock } from "./mock.ts";
 import { runCollection } from "./run.ts";
 
+// Testing note: @inquirer/prompts' select() reads arrow-key input in raw
+// mode, which needs a real TTY — piped stdin (what CI/most test runners give
+// a spawned process) can't drive it. A node-pty-based approach was tried to
+// script real keystrokes against a pseudo-terminal, but node-pty's native
+// binding doesn't work in this environment. So automated coverage here is
+// intentionally two-tiered: pure logic (notEmpty, validPort,
+// closeRunningServers) is unit-tested directly and exported for that
+// purpose; the actual menu navigation only gets a launch/render smoke test
+// (tests/integration/interactive.test.ts) and needs manual verification in a
+// real terminal — the run/mock/generate functions it calls into are already
+// covered by their own command-level tests.
+
 const theme: Partial<Theme> = {
   prefix: pc.cyan("shimwire ›"),
   style: {
@@ -38,7 +50,7 @@ export function validPort(value: string): true | string {
 // Servers started via "Mock" from the interactive menu keep running in the
 // background so you can immediately "Run" a collection against them without
 // leaving the menu; closed when you choose Exit.
-const runningServers: { port: number; app: FastifyInstance }[] = [];
+export const runningServers: { port: number; app: FastifyInstance }[] = [];
 
 // The most recently generated/selected collection, so choosing Run right
 // after Generate doesn't make you re-type the path you just wrote.
@@ -156,9 +168,14 @@ async function promptMock(): Promise<void> {
     default: config.cors ?? true,
     theme,
   });
+  const watch = await confirm({
+    message: "Show a live log line for every incoming request?",
+    default: config.watch ?? true,
+    theme,
+  });
 
   divider();
-  const app = await runMock(spec, { port, allowLocal, insecure, cors });
+  const app = await runMock(spec, { port, allowLocal, insecure, cors, watch });
   runningServers.push({ port: Number(port), app });
   log.dim('  Running in the background — pick "Run" to test it, or "Exit" to stop it.');
 }
@@ -233,7 +250,7 @@ async function promptRun(preset?: string): Promise<void> {
   lastCollection = collection;
 }
 
-async function closeRunningServers(): Promise<void> {
+export async function closeRunningServers(): Promise<void> {
   if (runningServers.length === 0) return;
   log.dim(`\nStopping ${runningServers.length} mock server(s)...`);
   await Promise.all(runningServers.map(({ app }) => app.close()));

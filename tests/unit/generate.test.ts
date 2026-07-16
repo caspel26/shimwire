@@ -25,6 +25,69 @@ describe("generateCollection", () => {
     expect(reviewNotes.some((n) => n.includes("get_pet"))).toBe(true);
   });
 
+  test("resolves each path param in a multi-level nested path to its own dependency", () => {
+    const spec: OpenAPIV3.Document = {
+      openapi: "3.0.3",
+      info: { title: "Nested test", version: "1.0.0" },
+      paths: {
+        "/players": {
+          post: {
+            operationId: "createPlayer",
+            responses: {
+              "201": {
+                description: "Created",
+                content: {
+                  "application/json": {
+                    schema: { type: "object", properties: { uuid: { type: "string" } } },
+                  },
+                },
+              },
+            },
+          },
+        },
+        "/players/{uuid}/inventory": {
+          post: {
+            operationId: "addInventoryItem",
+            responses: {
+              "201": {
+                description: "Created",
+                content: {
+                  "application/json": {
+                    schema: { type: "object", properties: { id: { type: "string" } } },
+                  },
+                },
+              },
+            },
+          },
+        },
+        "/players/{uuid}/inventory/{id}": {
+          delete: {
+            operationId: "removeInventoryItem",
+            responses: { "200": { description: "OK" } },
+          },
+        },
+      },
+    };
+
+    const { requests } = generateCollection(spec);
+    const addItem = requests.find((r) => r.id === "add_inventory_item");
+    const removeItem = requests.find((r) => r.id === "remove_inventory_item");
+
+    // the nested POST's own path param must resolve too, not just non-POST methods
+    expect(addItem?.path).toBe("/players/{{steps.create_player.response.uuid}}/inventory");
+    expect(addItem?.depends_on).toEqual(["create_player"]);
+
+    // each param in a multi-param path must link to its own resource's create,
+    // not both collapse onto the single nearest one
+    expect(removeItem?.path).toBe(
+      "/players/{{steps.create_player.response.uuid}}/inventory/{{steps.add_inventory_item.response.id}}"
+    );
+    expect(removeItem?.depends_on).toEqual(
+      expect.arrayContaining(["create_player", "add_inventory_item"])
+    );
+    expect(removeItem?.depends_on).toHaveLength(2);
+  });
+
   test("prefers an auto-configurable auth scheme among OR alternatives", () => {
     const spec: OpenAPIV3.Document = {
       openapi: "3.0.3",
