@@ -2,7 +2,7 @@
 
 **One tool for both sides of an API you don't fully control yet: mock the parts that aren't built, and test the parts that are.**
 
-`shimwire` reads an OpenAPI spec and gives you two things from it:
+`shimwire` reads an OpenAPI 3.x **or Swagger 2.0** spec (older specs are converted automatically) and gives you two things from it:
 
 - 🧪 **Mock mode** — spins up a fake-but-schema-valid API server, so frontend work isn't blocked waiting on a backend.
 - 🚀 **Client mode** — a scriptable, git-friendly HTTP test runner. Collections are version-controlled TOML files you can diff and review in a PR, not JSON blobs locked in a proprietary cloud tool.
@@ -146,7 +146,7 @@ Full details, exit criteria, and estimates: [shimwire-implementation-plan.md](sh
 
 ## Stack
 
-TypeScript on [Bun](https://bun.sh) · `commander` · `fastify` · `@apidevtools/swagger-parser` · `@faker-js/faker` · `smol-toml` · `picocolors`
+TypeScript on [Bun](https://bun.sh) · `commander` · `fastify` · `@apidevtools/swagger-parser` · `swagger2openapi` · `@faker-js/faker` · `smol-toml` · `picocolors`
 
 **Why Bun instead of Node/npm?** They're not really the same category of tool — npm is a package manager for code that runs under Node, while Bun is a package manager _and_ a JS/TS runtime that replaces Node entirely. Reasons this project uses it specifically:
 

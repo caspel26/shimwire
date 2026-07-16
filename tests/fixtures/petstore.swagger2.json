@@ -1,0 +1,81 @@
+{
+  "swagger": "2.0",
+  "info": { "title": "Swagger2 Petstore", "version": "1.0" },
+  "host": "localhost:8080",
+  "basePath": "/",
+  "paths": {
+    "/pets": {
+      "get": {
+        "operationId": "listPets",
+        "produces": ["application/json"],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Pet" }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPet",
+        "security": [{ "ApiKeyAuth": [] }],
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/NewPet" }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "schema": { "$ref": "#/definitions/Pet" }
+          }
+        }
+      }
+    },
+    "/pets/{id}": {
+      "get": {
+        "operationId": "getPet",
+        "produces": ["application/json"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": { "$ref": "#/definitions/Pet" }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Pet": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "sold"] }
+      }
+    },
+    "NewPet": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 3, "maxLength": 10 }
+      }
+    }
+  },
+  "securityDefinitions": {
+    "ApiKeyAuth": {
+      "type": "apiKey",
+      "name": "X-Api-Key",
+      "in": "header"
+    }
+  }
+}

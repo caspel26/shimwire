@@ -1,7 +1,38 @@
 import SwaggerParser from "@apidevtools/swagger-parser";
 import type { OpenAPIV3 } from "openapi-types";
+import { convertObj } from "swagger2openapi";
 
 export class OpenApiLoadError extends Error {}
+
+function isSwagger2Document(doc: unknown): doc is Record<string, unknown> & { swagger: string } {
+  return (
+    typeof doc === "object" &&
+    doc !== null &&
+    "swagger" in doc &&
+    (doc as { swagger: unknown }).swagger === "2.0"
+  );
+}
+
+// swaggo/swag (Go), Springfox (Java), and plenty of older tooling still emit
+// Swagger 2.0, which shapes requests/responses/auth completely differently
+// from OpenAPI 3.x (`schema` directly instead of `content.<type>.schema`,
+// `securityDefinitions` instead of `components.securitySchemes`, body params
+// via `parameters[].in === "body"` instead of `requestBody`). Every
+// downstream piece of shimwire (mock, generate, the schema faker) only
+// understands the 3.x shape, so convert once here rather than teaching each
+// of them to branch on spec version.
+//
+// Must run on the *raw*, still-$ref-containing document — swagger2openapi
+// rewrites `#/definitions/X` pointers to `#/components/schemas/X` as part of
+// conversion. Feeding it an already-dereferenced document (where repeated
+// $refs become shared object identity, not repeated $ref strings) makes it
+// mistake that shared identity for a circular YAML anchor and throw.
+async function toOpenApi3(doc: Record<string, unknown>): Promise<OpenAPIV3.Document> {
+  if (!isSwagger2Document(doc)) return doc as unknown as OpenAPIV3.Document;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await convertObj(doc as any, { patch: true, warnOnly: true, direct: true });
+  return result as unknown as OpenAPIV3.Document;
+}
 
 export interface LoadOpenApiSpecOptions {
   /** Allow fetching specs from localhost/private-network URLs. swagger-parser
@@ -39,11 +70,15 @@ export async function loadOpenApiSpec(
   const resolveOptions = options.allowLocal
     ? { resolve: { http: { safeUrlResolver: false } } }
     : {};
-  const dereference = () => SwaggerParser.dereference(path, resolveOptions);
+  // .parse() reads/fetches the spec but leaves $refs as strings; conversion
+  // (if needed) happens on that raw shape, then dereference resolves $refs
+  // against the (possibly-converted) in-memory document.
+  const parse = () => SwaggerParser.parse(path, resolveOptions);
 
   try {
-    const api = options.insecure ? await withInsecureFetch(dereference) : await dereference();
-    return api as OpenAPIV3.Document;
+    const raw = options.insecure ? await withInsecureFetch(parse) : await parse();
+    const converted = await toOpenApi3(raw as unknown as Record<string, unknown>);
+    return (await SwaggerParser.dereference(converted)) as OpenAPIV3.Document;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new OpenApiLoadError(`Failed to load OpenAPI spec at "${path}": ${message}`);
