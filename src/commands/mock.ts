@@ -30,7 +30,7 @@ export function registerMockCommand(program: Command): void {
       "path to an overrides.toml (defaults to .shimwire/mock/overrides.toml if present)"
     )
     .option(
-      "--allow-local",
+      "-l, --allow-local",
       "allow fetching <spec> from localhost/private-network URLs (disables swagger-parser's SSRF guard)",
       false
     )

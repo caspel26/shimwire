@@ -73,6 +73,27 @@ path = "/users/{{steps.create_user.response.id}}"
 depends_on = ["create_user"]
 ```
 
+## Configuration
+
+`shimwire generate` supports short flag aliases, and its flags can also come from a per-project `.shimwire/config.toml` — useful when you keep re-running it against the same spec:
+
+```bash
+# equivalent to: --from, --out, --security, --allow-local, --insecure
+shimwire generate -f openapi.yaml -o users.toml -s ManagerUserApiKeyAuth -lk
+```
+
+```toml
+# .shimwire/config.toml
+[generate]
+from = "https://localhost:8080/api/v2/openapi.json"
+out = ".shimwire/collections/api.toml"
+security = "ManagerUserApiKeyAuth"
+allow_local = true   # allow fetching --from specs from localhost/private-network URLs
+insecure = true       # skip TLS verification while fetching --from (self-signed local certs)
+```
+
+With that in place, `shimwire generate` alone (no flags) picks up every value from the config. Any CLI flag you do pass overrides the corresponding config value — nothing else needs to change. `--allow-local` and `--insecure` disable safety checks (an SSRF guard and TLS certificate verification, respectively) that exist for talking to untrusted specs; only turn them on for your own local/dev servers.
+
 ## Roadmap
 
 | Phase | What                                              | Status                                                                   |
