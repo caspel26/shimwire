@@ -34,8 +34,8 @@ function fakeString(schema: Schema): string {
   const byFormat = fakeByFormat(schema.format);
   if (typeof byFormat === "string") return byFormat;
 
-  const min = schema.minLength ?? 5;
-  const max = schema.maxLength ?? Math.max(min, 15);
+  const max = schema.maxLength ?? Math.max(schema.minLength ?? 5, 15);
+  const min = Math.min(schema.minLength ?? 5, max);
   return faker.string.alpha({ length: { min, max } });
 }
 
@@ -43,16 +43,16 @@ function fakeNumber(schema: Schema): number {
   if (schema.enum && schema.enum.length > 0) {
     return faker.helpers.arrayElement(schema.enum as number[]);
   }
-  const min = schema.minimum ?? 0;
-  const max = schema.maximum ?? Math.max(min + 100, 100);
+  const max = schema.maximum ?? Math.max(schema.minimum ?? 0, 100);
+  const min = Math.min(schema.minimum ?? 0, max);
   return schema.type === "integer"
     ? faker.number.int({ min, max })
     : faker.number.float({ min, max, fractionDigits: 2 });
 }
 
 function fakeArray(schema: OpenAPIV3.ArraySchemaObject): unknown[] {
-  const min = schema.minItems ?? 1;
-  const max = schema.maxItems ?? Math.max(min, 3);
+  const max = schema.maxItems ?? Math.max(schema.minItems ?? 1, 3);
+  const min = Math.min(schema.minItems ?? 1, max);
   const length = faker.number.int({ min, max });
   const items = (schema.items ?? {}) as Schema;
   return Array.from({ length }, () => generateFakeValue(items));

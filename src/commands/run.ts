@@ -12,6 +12,7 @@ interface RunOptions {
   env: string;
   only?: string;
   failOnError?: boolean;
+  insecure?: boolean;
 }
 
 function resolveCollectionPath(input: string): string {
@@ -44,6 +45,11 @@ export function registerRunCommand(program: Command): void {
     )
     .option("--only <id>", "run only this request and its dependencies")
     .option("--fail-on-error", "exit non-zero if any request fails", false)
+    .option(
+      "-k, --insecure",
+      "skip TLS certificate verification (self-signed/local dev certs)",
+      false
+    )
     .action(async (collectionArg: string, options: RunOptions) => {
       const collectionPath = resolveCollectionPath(collectionArg);
       const envPath = resolveEnvPath(options.env);
@@ -62,7 +68,12 @@ export function registerRunCommand(program: Command): void {
 
       for (const step of steps) {
         try {
-          const result = await executeStep(step, baseUrl, { env, steps: stepResults });
+          const result = await executeStep(
+            step,
+            baseUrl,
+            { env, steps: stepResults },
+            { insecure: options.insecure }
+          );
           stepResults[step.id] = { status: result.status, response: result.response };
           console.log(formatResult(result));
           if (!result.ok) anyFailed = true;

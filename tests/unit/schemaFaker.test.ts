@@ -50,4 +50,23 @@ describe("generateFakeValue", () => {
     const value = generateFakeValue({ type: "string", format: "uuid" }) as string;
     expect(value).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   });
+
+  test("doesn't throw when maxLength is smaller than the default min", () => {
+    const value = generateFakeValue({ type: "string", maxLength: 2 }) as string;
+    expect(value.length).toBeLessThanOrEqual(2);
+  });
+
+  test("doesn't throw when maximum is smaller than the default min", () => {
+    const value = generateFakeValue({ type: "integer", maximum: -5 }) as number;
+    expect(value).toBeLessThanOrEqual(-5);
+  });
+
+  test("doesn't throw when maxItems is smaller than the default min", () => {
+    const value = generateFakeValue({
+      type: "array",
+      maxItems: 0,
+      items: { type: "string" },
+    }) as unknown[];
+    expect(value.length).toBe(0);
+  });
 });

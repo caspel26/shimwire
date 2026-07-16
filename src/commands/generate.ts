@@ -8,6 +8,7 @@ import { loadOpenApiSpec } from "../core/openapi/loader.ts";
 interface GenerateOptions {
   from: string;
   out: string;
+  security?: string;
 }
 
 export function registerGenerateCommand(program: Command): void {
@@ -16,9 +17,15 @@ export function registerGenerateCommand(program: Command): void {
     .description("Auto-scaffold a starter collection from an OpenAPI spec")
     .requiredOption("--from <spec>", "path to an OpenAPI 3.x spec (yaml or json)")
     .requiredOption("--out <path>", "output path for the generated collection .toml")
+    .option(
+      "--security <schemeName>",
+      "when an operation accepts multiple auth schemes, prefer this securitySchemes name"
+    )
     .action(async (options: GenerateOptions) => {
       const spec = await loadOpenApiSpec(options.from);
-      const { meta, requests, reviewNotes } = generateCollection(spec);
+      const { meta, requests, reviewNotes } = generateCollection(spec, {
+        preferredSecurityScheme: options.security,
+      });
 
       const body = toml.stringify({ meta, request: requests });
       const header =
