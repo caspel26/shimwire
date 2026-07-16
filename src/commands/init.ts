@@ -2,7 +2,8 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Command } from "commander";
-import pc from "picocolors";
+import { withErrorHandling } from "../core/cliError.ts";
+import { log } from "../core/logger.ts";
 
 const SCAFFOLD_DIRS = ["collections", "env", "mock"];
 
@@ -59,34 +60,32 @@ export function registerInitCommand(program: Command): void {
   program
     .command("init")
     .description("Scaffold a .shimwire/ project in the current directory")
-    .action(async () => {
-      const root = join(process.cwd(), ".shimwire");
+    .action(
+      withErrorHandling(async () => {
+        const root = join(process.cwd(), ".shimwire");
 
-      if (existsSync(root)) {
-        console.error(pc.red(`.shimwire/ already exists at ${root}`));
-        process.exitCode = 1;
-        return;
-      }
+        if (existsSync(root)) {
+          throw new Error(`.shimwire/ already exists at ${root}`);
+        }
 
-      for (const dir of SCAFFOLD_DIRS) {
-        await mkdir(join(root, dir), { recursive: true });
-      }
-      await writeFile(join(root, "env", "dev.toml"), DEV_ENV_TOML);
-      await writeFile(join(root, "config.toml"), CONFIG_TOML);
+        for (const dir of SCAFFOLD_DIRS) {
+          await mkdir(join(root, dir), { recursive: true });
+        }
+        await writeFile(join(root, "env", "dev.toml"), DEV_ENV_TOML);
+        await writeFile(join(root, "config.toml"), CONFIG_TOML);
 
-      console.log(pc.green(`Created .shimwire/ in ${process.cwd()}`));
-      for (const dir of SCAFFOLD_DIRS) {
-        console.log(pc.dim(`  .shimwire/${dir}/`));
-      }
-      console.log(pc.dim(`  .shimwire/config.toml (commented-out defaults for generate/run/mock)`));
+        log.success(`Created .shimwire/ in ${process.cwd()}`);
+        for (const dir of SCAFFOLD_DIRS) {
+          log.dim(`  .shimwire/${dir}/`);
+        }
+        log.dim(`  .shimwire/config.toml (commented-out defaults for generate/run/mock)`);
 
-      const gitignoreResult = await ensureGitignoreEntry(process.cwd());
-      if (gitignoreResult === "created") {
-        console.log(pc.dim(`  .gitignore (created — keeps .shimwire/env/*.toml out of git)`));
-      } else if (gitignoreResult === "appended") {
-        console.log(
-          pc.dim(`  .gitignore (updated — added a rule to keep .shimwire/env/*.toml out of git)`)
-        );
-      }
-    });
+        const gitignoreResult = await ensureGitignoreEntry(process.cwd());
+        if (gitignoreResult === "created") {
+          log.dim(`  .gitignore (created — keeps .shimwire/env/*.toml out of git)`);
+        } else if (gitignoreResult === "appended") {
+          log.dim(`  .gitignore (updated — added a rule to keep .shimwire/env/*.toml out of git)`);
+        }
+      })
+    );
 }

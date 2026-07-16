@@ -1,9 +1,10 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Command } from "commander";
-import pc from "picocolors";
+import { withErrorHandling } from "../core/cliError.ts";
 import { loadConfig } from "../core/config/config.ts";
 import { loadOpenApiSpec, listOperations } from "../core/openapi/loader.ts";
+import { log } from "../core/logger.ts";
 import { loadOverrides } from "../mockServer/overrides.ts";
 import { buildMockServer } from "../mockServer/routerBuilder.ts";
 
@@ -49,31 +50,45 @@ export function registerMockCommand(program: Command): void {
       "enable permissive CORS headers (default; a browser frontend on another origin/port can call the mock directly)"
     )
     .option("--no-cors", "disable permissive CORS headers")
-    .action(async (specArg: string | undefined, options: MockOptions) => {
-      const config = (await loadConfig()).mock ?? {};
+    .action(
+      withErrorHandling(async (specArg: string | undefined, options: MockOptions) => {
+        const config = (await loadConfig()).mock ?? {};
 
-      const specPath = specArg ?? config.spec;
-      if (!specPath) {
-        throw new Error('Missing "spec": pass <spec> or set mock.spec in .shimwire/config.toml');
-      }
-      const port = Number(options.port ?? config.port ?? 4000);
-      const allowLocal = options.allowLocal ?? config.allow_local ?? false;
-      const insecure = options.insecure ?? config.insecure ?? false;
-      const cors = options.cors ?? config.cors ?? true;
-      const overridesOption = options.overrides ?? config.overrides;
+        const specPath = specArg ?? config.spec;
+        if (!specPath) {
+          throw new Error('Missing "spec": pass <spec> or set mock.spec in .shimwire/config.toml');
+        }
+        const port = Number(options.port ?? config.port ?? 4000);
+        const allowLocal = options.allowLocal ?? config.allow_local ?? false;
+        const insecure = options.insecure ?? config.insecure ?? false;
+        const cors = options.cors ?? config.cors ?? true;
+        const overridesOption = options.overrides ?? config.overrides;
 
-      const spec = await loadOpenApiSpec(specPath, { allowLocal, insecure });
-      const overridesPath = resolveOverridesPath(overridesOption);
-      const overrides = overridesPath ? await loadOverrides(overridesPath) : [];
+        log.dim(`Loading spec from ${specPath}...`);
+        const spec = await loadOpenApiSpec(specPath, { allowLocal, insecure });
 
-      const app = buildMockServer(spec, overrides, { cors });
-      await app.listen({ port });
+        const overridesPath = resolveOverridesPath(overridesOption);
+        const overrides = overridesPath ? await loadOverrides(overridesPath) : [];
+        if (overridesPath) {
+          log.dim(`Using overrides from ${overridesPath}`);
+        }
 
-      console.log(pc.green(`Mock server running on http://localhost:${port}`));
-      for (const { method, path, operation } of listOperations(spec)) {
-        const successCode =
-          Object.keys(operation.responses ?? {}).find((code) => /^2\d\d$/.test(code)) ?? "204";
-        console.log(pc.dim(`  ${method.toUpperCase().padEnd(6)} ${path}  → ${successCode}`));
-      }
-    });
+        const app = buildMockServer(spec, overrides, { cors });
+        try {
+          await app.listen({ port });
+        } catch (err) {
+          if (err instanceof Error && "code" in err && err.code === "EADDRINUSE") {
+            throw new Error(`Port ${port} is already in use — pass --port to use a different one.`);
+          }
+          throw err;
+        }
+
+        log.success(`Mock server running on http://localhost:${port}`);
+        for (const { method, path, operation } of listOperations(spec)) {
+          const successCode =
+            Object.keys(operation.responses ?? {}).find((code) => /^2\d\d$/.test(code)) ?? "204";
+          log.dim(`  ${method.toUpperCase().padEnd(6)} ${path}  → ${successCode}`);
+        }
+      })
+    );
 }

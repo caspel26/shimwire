@@ -204,6 +204,14 @@ depends_on = ["create_user"]
 
 Variables resolve from three sources: `env.*` (from `.shimwire/env/<name>.toml`), `faker.*` (any `@faker-js/faker` method path), and `steps.<id>.*` (a prior request's status/response in the same run).
 
+## Errors & debugging
+
+Every command fails with a single readable line (bad spec, missing config, port already in use, etc.) and exit code 1, instead of a raw stack trace. Set `SHIMWIRE_DEBUG=1` to see the full stack when you need it:
+
+```bash
+SHIMWIRE_DEBUG=1 shimwire mock ./bad-spec.yaml
+```
+
 ## Roadmap
 
 | Phase | What                                              | Status                                                                   |
