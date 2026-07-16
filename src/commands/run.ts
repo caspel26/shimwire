@@ -12,7 +12,7 @@ import { renderHtmlReport, toReportEntry, type ReportEntry } from "../core/execu
 import { log } from "../core/logger.ts";
 import { resolveString, type StepResult } from "../core/variables/resolver.ts";
 
-interface RunOptions {
+export interface RunOptions {
   env: string;
   only?: string;
   failOnError?: boolean;
@@ -33,6 +33,66 @@ function resolveEnvPath(name: string): string {
     throw new Error(`Environment not found: ${path}`);
   }
   return path;
+}
+
+export async function runCollection(collectionArg: string, options: RunOptions): Promise<void> {
+  const config = (await loadConfig()).run ?? {};
+  const report = options.report ?? config.report;
+
+  const collectionPath = resolveCollectionPath(collectionArg);
+  const envPath = resolveEnvPath(options.env);
+
+  const collection = await loadCollection(collectionPath);
+  const env = await loadEnvironment(envPath);
+
+  let steps = topologicalSort(collection.request);
+  if (options.only) {
+    steps = filterToTarget(steps, options.only);
+  }
+
+  const stepResults: Record<string, StepResult> = {};
+  const reportEntries: ReportEntry[] = [];
+  let anyFailed = false;
+  const baseUrl = resolveString(collection.meta.base_url, { env, steps: stepResults });
+
+  for (const step of steps) {
+    try {
+      const result = await executeStep(
+        step,
+        baseUrl,
+        { env, steps: stepResults },
+        { insecure: options.insecure }
+      );
+      stepResults[step.id] = { status: result.status, response: result.response };
+      log.info(formatResult(result));
+      reportEntries.push(toReportEntry(result));
+      if (!result.ok) anyFailed = true;
+    } catch (err) {
+      anyFailed = true;
+      const message = err instanceof Error ? err.message : String(err);
+      log.info(formatError(step.id, message));
+      reportEntries.push({
+        id: step.id,
+        method: step.method,
+        path: step.path,
+        ok: false,
+        error: message,
+      });
+    }
+  }
+
+  if (report) {
+    const html = renderHtmlReport(reportEntries, { collection: collectionPath, env: options.env });
+    await mkdir(dirname(report), { recursive: true });
+    await writeFile(report, html);
+    log.dim(`\nReport written to ${report}`);
+  }
+
+  if (anyFailed && options.failOnError) {
+    process.exitCode = 1;
+  } else if (anyFailed) {
+    log.warn("\nOne or more requests failed (use --fail-on-error to exit non-zero in CI)");
+  }
 }
 
 export function registerRunCommand(program: Command): void {
@@ -59,68 +119,5 @@ export function registerRunCommand(program: Command): void {
       "-r, --report <path>",
       "write an HTML report with full request/response detail for every step (sensitive headers redacted); overrides .shimwire/config.toml [run].report"
     )
-    .action(
-      withErrorHandling(async (collectionArg: string, options: RunOptions) => {
-        const config = (await loadConfig()).run ?? {};
-        const report = options.report ?? config.report;
-
-        const collectionPath = resolveCollectionPath(collectionArg);
-        const envPath = resolveEnvPath(options.env);
-
-        const collection = await loadCollection(collectionPath);
-        const env = await loadEnvironment(envPath);
-
-        let steps = topologicalSort(collection.request);
-        if (options.only) {
-          steps = filterToTarget(steps, options.only);
-        }
-
-        const stepResults: Record<string, StepResult> = {};
-        const reportEntries: ReportEntry[] = [];
-        let anyFailed = false;
-        const baseUrl = resolveString(collection.meta.base_url, { env, steps: stepResults });
-
-        for (const step of steps) {
-          try {
-            const result = await executeStep(
-              step,
-              baseUrl,
-              { env, steps: stepResults },
-              { insecure: options.insecure }
-            );
-            stepResults[step.id] = { status: result.status, response: result.response };
-            log.info(formatResult(result));
-            reportEntries.push(toReportEntry(result));
-            if (!result.ok) anyFailed = true;
-          } catch (err) {
-            anyFailed = true;
-            const message = err instanceof Error ? err.message : String(err);
-            log.info(formatError(step.id, message));
-            reportEntries.push({
-              id: step.id,
-              method: step.method,
-              path: step.path,
-              ok: false,
-              error: message,
-            });
-          }
-        }
-
-        if (report) {
-          const html = renderHtmlReport(reportEntries, {
-            collection: collectionPath,
-            env: options.env,
-          });
-          await mkdir(dirname(report), { recursive: true });
-          await writeFile(report, html);
-          log.dim(`\nReport written to ${report}`);
-        }
-
-        if (anyFailed && options.failOnError) {
-          process.exitCode = 1;
-        } else if (anyFailed) {
-          log.warn("\nOne or more requests failed (use --fail-on-error to exit non-zero in CI)");
-        }
-      })
-    );
+    .action(withErrorHandling(runCollection));
 }

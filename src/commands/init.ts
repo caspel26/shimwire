@@ -56,36 +56,36 @@ async function ensureGitignoreEntry(
   return "appended";
 }
 
+export async function runInit(): Promise<void> {
+  const root = join(process.cwd(), ".shimwire");
+
+  if (existsSync(root)) {
+    throw new Error(`.shimwire/ already exists at ${root}`);
+  }
+
+  for (const dir of SCAFFOLD_DIRS) {
+    await mkdir(join(root, dir), { recursive: true });
+  }
+  await writeFile(join(root, "env", "dev.toml"), DEV_ENV_TOML);
+  await writeFile(join(root, "config.toml"), CONFIG_TOML);
+
+  log.success(`Created .shimwire/ in ${process.cwd()}`);
+  for (const dir of SCAFFOLD_DIRS) {
+    log.dim(`  .shimwire/${dir}/`);
+  }
+  log.dim(`  .shimwire/config.toml (commented-out defaults for generate/run/mock)`);
+
+  const gitignoreResult = await ensureGitignoreEntry(process.cwd());
+  if (gitignoreResult === "created") {
+    log.dim(`  .gitignore (created — keeps .shimwire/env/*.toml out of git)`);
+  } else if (gitignoreResult === "appended") {
+    log.dim(`  .gitignore (updated — added a rule to keep .shimwire/env/*.toml out of git)`);
+  }
+}
+
 export function registerInitCommand(program: Command): void {
   program
     .command("init")
     .description("Scaffold a .shimwire/ project in the current directory")
-    .action(
-      withErrorHandling(async () => {
-        const root = join(process.cwd(), ".shimwire");
-
-        if (existsSync(root)) {
-          throw new Error(`.shimwire/ already exists at ${root}`);
-        }
-
-        for (const dir of SCAFFOLD_DIRS) {
-          await mkdir(join(root, dir), { recursive: true });
-        }
-        await writeFile(join(root, "env", "dev.toml"), DEV_ENV_TOML);
-        await writeFile(join(root, "config.toml"), CONFIG_TOML);
-
-        log.success(`Created .shimwire/ in ${process.cwd()}`);
-        for (const dir of SCAFFOLD_DIRS) {
-          log.dim(`  .shimwire/${dir}/`);
-        }
-        log.dim(`  .shimwire/config.toml (commented-out defaults for generate/run/mock)`);
-
-        const gitignoreResult = await ensureGitignoreEntry(process.cwd());
-        if (gitignoreResult === "created") {
-          log.dim(`  .gitignore (created — keeps .shimwire/env/*.toml out of git)`);
-        } else if (gitignoreResult === "appended") {
-          log.dim(`  .gitignore (updated — added a rule to keep .shimwire/env/*.toml out of git)`);
-        }
-      })
-    );
+    .action(withErrorHandling(runInit));
 }

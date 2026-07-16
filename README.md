@@ -84,7 +84,11 @@ shimwire run users.toml --env dev --report report.html
 
 ### `shimwire init`
 
-Scaffolds `.shimwire/{collections,env,mock}/` in the current directory.
+Scaffolds `.shimwire/{collections,env,mock}/`, a starter `.shimwire/config.toml`, and a `.gitignore` entry protecting `.shimwire/env/*.toml` secrets.
+
+### `shimwire cli`
+
+Launches an interactive menu — pick "Mock", "Generate", "Run", or "Init" and answer a few prompts instead of remembering flags. Pre-fills answers from `.shimwire/config.toml` when present. Useful when you're exploring a new spec rather than scripting something repeatable.
 
 ### `shimwire mock [spec]`
 

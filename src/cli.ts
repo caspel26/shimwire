@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { registerGenerateCommand } from "./commands/generate.ts";
 import { registerInitCommand } from "./commands/init.ts";
+import { registerInteractiveCommand } from "./commands/interactive.ts";
 import { registerMockCommand } from "./commands/mock.ts";
 import { registerRunCommand } from "./commands/run.ts";
 
@@ -16,5 +17,6 @@ registerInitCommand(program);
 registerRunCommand(program);
 registerMockCommand(program);
 registerGenerateCommand(program);
+registerInteractiveCommand(program);
 
 program.parse();
