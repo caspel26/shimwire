@@ -12,8 +12,13 @@ const GenerateConfigSchema = z.object({
   insecure: z.boolean().optional(),
 });
 
+const RunConfigSchema = z.object({
+  report: z.string().optional(),
+});
+
 const ConfigSchema = z.object({
   generate: GenerateConfigSchema.optional(),
+  run: RunConfigSchema.optional(),
 });
 
 export type ShimwireConfig = z.infer<typeof ConfigSchema>;

@@ -33,4 +33,18 @@ out = ".shimwire/collections/api.toml"
       out: ".shimwire/collections/api.toml",
     });
   });
+
+  test("parses a [run] section", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "shimwire-config-test-"));
+    mkdirSync(join(cwd, ".shimwire"), { recursive: true });
+    writeFileSync(
+      join(cwd, ".shimwire", "config.toml"),
+      `[run]
+report = ".shimwire/reports/latest.html"
+`
+    );
+
+    const config = await loadConfig(cwd);
+    expect(config.run).toEqual({ report: ".shimwire/reports/latest.html" });
+  });
 });

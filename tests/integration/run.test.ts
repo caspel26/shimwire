@@ -151,4 +151,37 @@ path = "/does-not-exist"
     expect(html).toContain("get_user");
     expect(html).toContain("2 passed");
   });
+
+  test("picks up [run].report from .shimwire/config.toml when --report isn't passed", async () => {
+    const cwd = setupProject();
+    writeFileSync(join(cwd, ".shimwire", "config.toml"), `[run]\nreport = "from-config.html"\n`);
+
+    const proc = Bun.spawn(["bun", "run", CLI_PATH, "run", "users.toml", "--env", "dev"], {
+      cwd,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const exitCode = await proc.exited;
+
+    expect(exitCode).toBe(0);
+    expect(existsSync(join(cwd, "from-config.html"))).toBe(true);
+  });
+
+  test("--report overrides [run].report from config", async () => {
+    const cwd = setupProject();
+    writeFileSync(
+      join(cwd, ".shimwire", "config.toml"),
+      `[run]\nreport = "should-not-be-used.html"\n`
+    );
+
+    const proc = Bun.spawn(
+      ["bun", "run", CLI_PATH, "run", "users.toml", "--env", "dev", "--report", "overridden.html"],
+      { cwd, stdout: "pipe", stderr: "pipe" }
+    );
+    const exitCode = await proc.exited;
+
+    expect(exitCode).toBe(0);
+    expect(existsSync(join(cwd, "overridden.html"))).toBe(true);
+    expect(existsSync(join(cwd, "should-not-be-used.html"))).toBe(false);
+  });
 });

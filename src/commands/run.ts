@@ -5,6 +5,7 @@ import type { Command } from "commander";
 import pc from "picocolors";
 import { filterToTarget, topologicalSort } from "../core/collection/depGraph.ts";
 import { loadCollection, loadEnvironment } from "../core/collection/parser.ts";
+import { loadConfig } from "../core/config/config.ts";
 import { executeStep } from "../core/executor/httpClient.ts";
 import { formatError, formatResult } from "../core/executor/formatter.ts";
 import { renderHtmlReport, toReportEntry, type ReportEntry } from "../core/executor/htmlReport.ts";
@@ -55,9 +56,12 @@ export function registerRunCommand(program: Command): void {
     )
     .option(
       "-r, --report <path>",
-      "write an HTML report with full request/response detail for every step (sensitive headers redacted)"
+      "write an HTML report with full request/response detail for every step (sensitive headers redacted); overrides .shimwire/config.toml [run].report"
     )
     .action(async (collectionArg: string, options: RunOptions) => {
+      const config = (await loadConfig()).run ?? {};
+      const report = options.report ?? config.report;
+
       const collectionPath = resolveCollectionPath(collectionArg);
       const envPath = resolveEnvPath(options.env);
 
@@ -100,14 +104,14 @@ export function registerRunCommand(program: Command): void {
         }
       }
 
-      if (options.report) {
+      if (report) {
         const html = renderHtmlReport(reportEntries, {
           collection: collectionPath,
           env: options.env,
         });
-        await mkdir(dirname(options.report), { recursive: true });
-        await writeFile(options.report, html);
-        console.log(pc.dim(`\nReport written to ${options.report}`));
+        await mkdir(dirname(report), { recursive: true });
+        await writeFile(report, html);
+        console.log(pc.dim(`\nReport written to ${report}`));
       }
 
       if (anyFailed && options.failOnError) {

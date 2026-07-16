@@ -124,9 +124,12 @@ out = ".shimwire/collections/api.toml"
 security = "APIKeyAuth"
 allow_local = true   # allow fetching --from specs from localhost/private-network URLs
 insecure = true       # skip TLS verification while fetching --from (self-signed local certs)
+
+[run]
+report = ".shimwire/reports/latest.html"   # always write a report, without passing --report
 ```
 
-With that in place, `shimwire generate` alone (no flags) picks up every value from the config. Any CLI flag you do pass overrides the corresponding config value — nothing else needs to change. `--allow-local` and `--insecure` disable safety checks (an SSRF guard and TLS certificate verification, respectively) that exist for talking to untrusted specs; only turn them on for your own local/dev servers.
+With that in place, `shimwire generate` (and `shimwire run`) need no flags at all — every value comes from the config. Any CLI flag you do pass overrides the corresponding config value; nothing else needs to change. `--allow-local` and `--insecure` disable safety checks (an SSRF guard and TLS certificate verification, respectively) that exist for talking to untrusted specs; only turn them on for your own local/dev servers.
 
 ## Roadmap
 
