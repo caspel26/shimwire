@@ -6,7 +6,7 @@ import { log } from "./logger.ts";
 // bad specs, network errors, port conflicts, ...) print one readable line
 // and exit 1 — set SHIMWIRE_DEBUG=1 to see the full stack when you need it.
 export function withErrorHandling<Args extends unknown[]>(
-  action: (...args: Args) => Promise<void>
+  action: (...args: Args) => Promise<unknown>
 ): (...args: Args) => Promise<void> {
   return async (...args: Args) => {
     try {

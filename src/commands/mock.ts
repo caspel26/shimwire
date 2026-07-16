@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Command } from "commander";
+import type { FastifyInstance } from "fastify";
 import { withErrorHandling } from "../core/cliError.ts";
 import { loadConfig } from "../core/config/config.ts";
 import { loadOpenApiSpec, listOperations } from "../core/openapi/loader.ts";
@@ -22,7 +23,10 @@ function resolveOverridesPath(explicit: string | undefined): string | undefined 
   return existsSync(defaultPath) ? defaultPath : undefined;
 }
 
-export async function runMock(specArg: string | undefined, options: MockOptions): Promise<void> {
+export async function runMock(
+  specArg: string | undefined,
+  options: MockOptions
+): Promise<FastifyInstance> {
   const config = (await loadConfig()).mock ?? {};
 
   const specPath = specArg ?? config.spec;
@@ -60,6 +64,8 @@ export async function runMock(specArg: string | undefined, options: MockOptions)
       Object.keys(operation.responses ?? {}).find((code) => /^2\d\d$/.test(code)) ?? "204";
     log.dim(`  ${method.toUpperCase().padEnd(6)} ${path}  → ${successCode}`);
   }
+
+  return app;
 }
 
 export function registerMockCommand(program: Command): void {

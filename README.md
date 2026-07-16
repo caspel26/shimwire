@@ -88,7 +88,7 @@ Scaffolds `.shimwire/{collections,env,mock}/`, a starter `.shimwire/config.toml`
 
 ### `shimwire cli`
 
-Launches an interactive menu — pick "Mock", "Generate", "Run", or "Init" and answer a few prompts instead of remembering flags. Pre-fills answers from `.shimwire/config.toml` when present. Useful when you're exploring a new spec rather than scripting something repeatable.
+Launches an interactive menu — pick "Mock", "Generate", "Run", or "Init" and answer a few validated prompts instead of remembering flags. Pre-fills answers from `.shimwire/config.toml` when present. Picking "Mock" starts the server in the background and returns to the menu, so you can immediately pick "Run" to test against it; after "Generate" it offers to run the collection it just wrote. Useful when you're exploring a new spec rather than scripting something repeatable.
 
 ### `shimwire mock [spec]`
 
