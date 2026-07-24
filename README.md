@@ -1,43 +1,60 @@
-# shimwire
+<div align="center">
 
-[![CI](https://github.com/caspel26/shimwire/actions/workflows/ci.yml/badge.svg)](https://github.com/caspel26/shimwire/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+# shimwire
 
 **One tool for both sides of an API you don't fully control yet: mock the parts that aren't built, and test the parts that are.**
 
+[![CI](https://github.com/caspel26/shimwire/actions/workflows/ci.yml/badge.svg)](https://github.com/caspel26/shimwire/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Bun](https://img.shields.io/badge/runtime-bun-f472b6.svg)](https://bun.sh)
+[![TypeScript](https://img.shields.io/badge/lang-TypeScript-3178c6.svg)](https://www.typescriptlang.org/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+
+</div>
+
 `shimwire` reads an OpenAPI 3.x or Swagger 2.0 spec (older specs are converted automatically) and gives you two things from it, powered by one shared engine so they never drift apart:
 
-- **Mock mode** — a fake-but-schema-valid API server, so frontend work isn't blocked waiting on a backend.
-- **Client mode** — a scriptable, git-friendly HTTP test runner. Collections are version-controlled TOML files you can diff and review in a PR, not JSON blobs locked in a proprietary cloud tool.
+- 🧪 **Mock mode** — a fake-but-schema-valid API server, so frontend work isn't blocked waiting on a backend.
+- 🚀 **Client mode** — a scriptable, git-friendly HTTP test runner. Collections are version-controlled TOML files you can diff and review in a PR, not JSON blobs locked in a proprietary cloud tool.
 
-> **Status:** functional end-to-end (Phases 0–3 of the [implementation plan](shimwire-implementation-plan.md) are done). Not yet published as an installable package — run it from source for now. Issues and design feedback are welcome.
+> **Status:** functional end-to-end (Phases 0–3 of the [implementation plan](shimwire-implementation-plan.md) are done). Not yet published as an installable package — run it from source for now. **Issues, ideas, and PRs are genuinely welcome** — see [Contributing](#-contributing).
 
 ---
 
 ## Table of contents
 
-- [Why](#why)
-- [Installation](#installation)
-- [Quick start](#quick-start)
-- [Commands](#commands)
-- [Configuration](#configuration)
-- [Testing a frontend against the mock server](#testing-a-frontend-against-the-mock-server)
-- [Collection format](#collection-format)
-- [Roadmap](#roadmap)
-- [Stack](#stack)
-- [Contributing](#contributing)
-- [License](#license)
+- [✨ Features](#-features)
+- [🤔 Why](#-why)
+- [📦 Installation](#-installation)
+- [🚀 Quick start](#-quick-start)
+- [🧰 Commands](#-commands)
+- [⚙️ Configuration](#️-configuration)
+- [🖥️ Testing a frontend against the mock server](#️-testing-a-frontend-against-the-mock-server)
+- [📄 Collection format](#-collection-format)
+- [🩹 Errors & debugging](#-errors--debugging)
+- [🗺️ Roadmap](#️-roadmap)
+- [🏗️ Stack](#️-stack)
+- [🤝 Contributing](#-contributing)
+- [📜 License](#-license)
 
-## Why
+## ✨ Features
 
-Postman/Insomnia-style tools lock collections into proprietary formats that don't diff cleanly in git and don't run well in CI. Meanwhile, mocking a backend usually means hand-rolling fixtures that quietly drift from the real API contract. If you already have an OpenAPI (or Swagger 2.0) spec, both problems have the same fix: derive the mock _and_ the test collection from that one source of truth.
+- 🔀 **Spec-driven** — mock server and test collections both come from the same OpenAPI/Swagger spec, so they can never disagree with each other.
+- 📁 **Git-native collections** — plain TOML, reviewable in a normal PR diff, no proprietary cloud format.
+- 🌐 **CORS-ready mock server** — on by default, so a browser frontend on another port just works.
+- 📡 **Live request log** — watch your frontend's traffic hit the mock in real time.
+- 🎭 **Realistic fake data** — schema-aware (respects `type`, `format`, `enum`, `min`/`max`), not just random junk.
+- 🎯 **Overrides** — force a specific status, inject latency, or pin an exact response for edge-case testing.
+- 🤖 **Auto-scaffolding** — `generate` builds a runnable collection from your spec, guessing request chaining and pre-filling auth.
+- 🖱️ **Interactive CLI** — a guided menu (`shimwire cli`) for exploring a spec without memorizing flags.
+- 📊 **HTML reports** — readable request/response detail for `run`, not just terminal noise.
+- 🩺 **Clean errors** — one readable line and exit code 1 on failure, not a raw stack trace.
 
-- **Git-native** — collections and environments are plain TOML files, reviewable in a normal PR diff.
-- **CI-friendly** — `shimwire run` exits non-zero on failure; `--report` produces a readable HTML artifact for humans.
-- **Spec-driven** — mocks and generated collections both come from your OpenAPI/Swagger spec, so they can't disagree with each other.
-- **Frontend-ready** — the mock server sends permissive CORS by default, so a browser app on another port can call it with no extra setup.
+## 🤔 Why
 
-## Installation
+Postman/Insomnia-style tools lock collections into proprietary formats that don't diff cleanly in git and don't run well in CI. Meanwhile, mocking a backend usually means hand-rolling fixtures that quietly drift from the real API contract. If you already have an OpenAPI (or Swagger 2.0) spec, both problems have the same fix: derive the mock _and_ the test collection from that one source of truth — see [Features](#-features) above for what that gets you in practice.
+
+## 📦 Installation
 
 Not published to npm yet — run it from source:
 
@@ -48,11 +65,11 @@ bun install
 bun run src/cli.ts <command>
 ```
 
-(A `bun install -g shimwire` / compiled-binary install path is planned for Phase 5 — see the [Roadmap](#roadmap).)
+(A `bun install -g shimwire` / compiled-binary install path is planned for Phase 5 — see the [Roadmap](#️-roadmap).)
 
 > The examples below use a bare `shimwire` for readability. Until Phase 5 ships an installable package, that's an alias for `bun run /path/to/shimwire/src/cli.ts` — e.g. `alias shimwire="bun run /path/to/shimwire/src/cli.ts"`.
 
-## Quick start
+## 🚀 Quick start
 
 ```bash
 # scaffold a project
@@ -80,7 +97,9 @@ shimwire run smoke.toml --env staging --fail-on-error
 shimwire run users.toml --env dev --report report.html
 ```
 
-## Commands
+Prefer answering a few prompts instead of remembering flags? Try `shimwire cli` for a guided interactive menu.
+
+## 🧰 Commands
 
 ### `shimwire init`
 
@@ -128,7 +147,7 @@ Runs a collection against a real backend.
 | `-k, --insecure`      | off     | Skip TLS certificate verification.                                                                                       |
 | `-r, --report <path>` | —       | Write an HTML report (full request/response detail, sensitive headers redacted). Falls back to `[run].report` in config. |
 
-## Configuration
+## ⚙️ Configuration
 
 `generate`, `run`, and `mock` all read defaults from a per-project `.shimwire/config.toml` — useful for a spec/backend you test against repeatedly. Any CLI flag you do pass overrides the corresponding config value; nothing else changes.
 
@@ -154,7 +173,7 @@ cors = true
 
 With that in place, `shimwire generate`, `shimwire run <collection>`, and `shimwire mock` all work with zero flags. `--allow-local` and `--insecure` disable safety checks (an SSRF guard and TLS certificate verification, respectively) meant for untrusted specs — only enable them for your own local/dev servers.
 
-## Testing a frontend against the mock server
+## 🖥️ Testing a frontend against the mock server
 
 Point your frontend's API base URL at the mock server instead of a real backend:
 
@@ -163,6 +182,7 @@ shimwire mock openapi.yaml --port 4000
 ```
 
 - **CORS is on by default** — a browser frontend running on a different origin/port (e.g. `localhost:5173` calling `localhost:4000`) works out of the box, including preflight `OPTIONS` requests. Pass `--no-cors` if you specifically want to test your frontend's own CORS failure handling.
+- **Watch traffic live** — every incoming request prints a colored line (time, method, path, status, duration) so you can see exactly what your frontend is calling. Pass `--no-watch` to quiet it down.
 - **Simulate edge cases** with `.shimwire/mock/overrides.toml` — force a specific status, inject artificial latency (loading states), or pin an exact response body, independently of each other:
 
   ```toml
@@ -185,7 +205,7 @@ shimwire mock openapi.yaml --port 4000
 
 - Every other endpoint not covered by an override still returns schema-valid random data on every call, so your frontend gets realistic variety (different names, IDs, enum values) without you writing fixtures for all of it.
 
-## Collection format
+## 📄 Collection format
 
 ```toml
 [meta]
@@ -209,7 +229,7 @@ depends_on = ["create_user"]
 
 Variables resolve from three sources: `env.*` (from `.shimwire/env/<name>.toml`), `faker.*` (any `@faker-js/faker` method path), and `steps.<id>.*` (a prior request's status/response in the same run).
 
-## Errors & debugging
+## 🩹 Errors & debugging
 
 Every command fails with a single readable line (bad spec, missing config, port already in use, etc.) and exit code 1, instead of a raw stack trace. Set `SHIMWIRE_DEBUG=1` to see the full stack when you need it:
 
@@ -217,7 +237,7 @@ Every command fails with a single readable line (bad spec, missing config, port 
 SHIMWIRE_DEBUG=1 shimwire mock ./bad-spec.yaml
 ```
 
-## Roadmap
+## 🗺️ Roadmap
 
 | Phase | What                                              | Status                                                                   |
 | ----- | ------------------------------------------------- | ------------------------------------------------------------------------ |
@@ -230,7 +250,7 @@ SHIMWIRE_DEBUG=1 shimwire mock ./bad-spec.yaml
 
 Full details, exit criteria, and estimates: [shimwire-implementation-plan.md](shimwire-implementation-plan.md).
 
-## Stack
+## 🏗️ Stack
 
 TypeScript on [Bun](https://bun.sh) · `commander` · `fastify` · `@fastify/cors` · `@apidevtools/swagger-parser` · `swagger2openapi` · `@faker-js/faker` · `smol-toml` · `zod` · `picocolors`
 
@@ -243,16 +263,22 @@ TypeScript on [Bun](https://bun.sh) · `commander` · `fastify` · `@fastify/cor
 
 The tradeoff: Bun's Node-compatibility is very good but not perfect. For this project's dependency list — all popular, well-maintained packages — that risk is low.
 
-## Contributing
+## 🤝 Contributing
 
-```bash
-bun install
-bun test
-bun run lint
-```
+Contributions of any size are welcome — a typo fix, a bug report, a new override capability, or a completely different perspective on the design. This is a solo side project in its early days, so there's no formal process to navigate:
 
-No formal process yet (this is a solo side project in its early days), but issues and PRs are welcome. The codebase is small enough to read in one sitting: `src/core/` for the shared engine, `src/commands/` for the CLI surface, `src/mockServer/` for the fastify-based mock. See [shimwire-implementation-plan.md](shimwire-implementation-plan.md) for the design rationale before proposing anything structural.
+1. **Found a bug or have an idea?** [Open an issue](https://github.com/caspel26/shimwire/issues) — even a rough one is useful.
+2. **Want to send a PR?** Fork, branch, and:
+   ```bash
+   bun install
+   bun test
+   bun run lint
+   ```
+   Make sure both pass before opening the PR. Small, focused PRs are easiest to review and merge.
+3. **Not sure where to start?** The codebase is small enough to read in one sitting: `src/core/` for the shared engine (parser, faker, variable resolver), `src/commands/` for the CLI surface, `src/mockServer/` for the fastify-based mock. Read [shimwire-implementation-plan.md](shimwire-implementation-plan.md) for the design rationale before proposing anything structural — it explains _why_ things are built the way they are, which saves a round-trip on bigger changes.
 
-## License
+If you use shimwire and it helps you, a ⭐ on the repo is genuinely appreciated — it's a good signal that iterating on this is worth the time.
+
+## 📜 License
 
 MIT — see [LICENSE](LICENSE).
