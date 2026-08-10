@@ -7,7 +7,13 @@ const originalConsoleLog = console.log;
 const originalDebugEnv = process.env.SHIMWIRE_DEBUG;
 
 afterEach(() => {
-  process.exitCode = originalExitCode;
+  // Bun (unlike Node) doesn't clear a previously-set process.exitCode when
+  // it's reassigned `undefined` — only an explicit falsy number sticks. Since
+  // originalExitCode is undefined here (nothing sets it before these tests
+  // run), `process.exitCode = originalExitCode` was a silent no-op: the "sets
+  // exit code 1" test's mutation survived into every later test file, and
+  // `bun test` exited 1 for the whole suite regardless of pass/fail counts.
+  process.exitCode = originalExitCode ?? 0;
   console.error = originalConsoleError;
   console.log = originalConsoleLog;
   if (originalDebugEnv === undefined) delete process.env.SHIMWIRE_DEBUG;

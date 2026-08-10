@@ -48,13 +48,21 @@ const theme: Partial<Theme> = {
   prefix: violet("shimwire ›"),
   style: {
     answer: (text: string) => pc.green(text),
-    highlight: (text: string) => violet(text),
+    highlight: (text: string) => pc.bold(violet(text)),
     message: (text: string) => pc.bold(text),
     help: (text: string) => pc.dim(text),
     error: (text: string) => pc.red(text),
     defaultAnswer: (text: string) => pc.dim(`(${text})`),
     key: (text: string) => pc.bold(blue(`<${text}>`)),
   },
+};
+
+// select() has its own theme extension (description/cursor icon) on top of
+// the base Theme — left unset it falls back to @inquirer/select's hardcoded
+// cyan, which clashed with the rest of the brand palette above.
+const selectTheme = {
+  ...theme,
+  style: { ...theme.style, description: (text: string) => blue(text) },
 };
 
 export const notEmpty = (label: string) => (value: string) =>
@@ -86,7 +94,7 @@ function banner(): void {
 
   console.log(
     boxen(tagline + status, {
-      title: pc.bold(violet("shimwire")),
+      title: pc.bold(blue("shim") + violet("wire")),
       titleAlignment: "left",
       padding: { left: 2, right: 2, top: 1, bottom: 1 },
       margin: { top: 1, bottom: 2, left: 0, right: 0 },
@@ -206,7 +214,7 @@ async function promptRun(preset?: string): Promise<void> {
     if (collections.length > 0) {
       const choice = await select({
         message: "Which collection?",
-        theme,
+        theme: selectTheme,
         choices: [
           ...collections.map((file) => ({ name: file, value: file })),
           new Separator(),
@@ -295,7 +303,7 @@ export function registerInteractiveCommand(program: Command): void {
 
           const action = await select({
             message: "What do you want to do?",
-            theme,
+            theme: selectTheme,
             choices: [
               {
                 name: "🧪 Mock",
