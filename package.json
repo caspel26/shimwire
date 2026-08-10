@@ -4,11 +4,33 @@
   "description": "OpenAPI-driven mock server and git-friendly HTTP test runner",
   "module": "src/cli.ts",
   "type": "module",
-  "private": true,
   "license": "MIT",
+  "homepage": "https://github.com/caspel26/shimwire#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caspel26/shimwire.git"
+  },
+  "bugs": {
+    "url": "https://github.com/caspel26/shimwire/issues"
+  },
+  "keywords": [
+    "openapi",
+    "swagger",
+    "mock-server",
+    "api-testing",
+    "http-client",
+    "cli",
+    "bun"
+  ],
+  "engines": {
+    "bun": ">=1.0.0"
+  },
   "bin": {
     "shimwire": "src/cli.ts"
   },
+  "files": [
+    "src"
+  ],
   "scripts": {
     "cli": "bun run src/cli.ts",
     "test": "bun test",
