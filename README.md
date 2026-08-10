@@ -19,8 +19,6 @@
 - 🧪 **Mock mode** — a fake-but-schema-valid API server, so frontend work isn't blocked waiting on a backend.
 - 🚀 **Client mode** — a scriptable, git-friendly HTTP test runner. Collections are version-controlled TOML files you can diff and review in a PR, not JSON blobs locked in a proprietary cloud tool.
 
-> **Status:** functional end-to-end (Phases 0–3 of the [implementation plan](shimwire-implementation-plan.md) are done). Not yet published as an installable package — run it from source for now. **Issues, ideas, and PRs are genuinely welcome** — see [Contributing](#-contributing).
-
 ---
 
 ## Table of contents
@@ -34,7 +32,6 @@
 - [🖥️ Testing a frontend against the mock server](#️-testing-a-frontend-against-the-mock-server)
 - [📄 Collection format](#-collection-format)
 - [🩹 Errors & debugging](#-errors--debugging)
-- [🗺️ Roadmap](#️-roadmap)
 - [🏗️ Stack](#️-stack)
 - [🤝 Contributing](#-contributing)
 - [📜 License](#-license)
@@ -58,7 +55,15 @@ Postman/Insomnia-style tools lock collections into proprietary formats that don'
 
 ## 📦 Installation
 
-Not published to npm yet — run it from source:
+Requires [Bun](https://bun.sh) — shimwire runs directly off its `#!/usr/bin/env bun` shebang, no separate build/Node install needed.
+
+```bash
+npm install -g shimwire
+# or, without installing anything:
+bunx shimwire <command>
+```
+
+Prefer building from source (or want to contribute)?
 
 ```bash
 git clone https://github.com/caspel26/shimwire
@@ -67,9 +72,7 @@ bun install
 bun run src/cli.ts <command>
 ```
 
-(A `bun install -g shimwire` / compiled-binary install path is planned for Phase 5 — see the [Roadmap](#️-roadmap).)
-
-> The examples below use a bare `shimwire` for readability. Until Phase 5 ships an installable package, that's an alias for `bun run /path/to/shimwire/src/cli.ts` — e.g. `alias shimwire="bun run /path/to/shimwire/src/cli.ts"`.
+Standalone binaries (no Bun install required to run) may come later.
 
 ## 🚀 Quick start
 
@@ -287,19 +290,6 @@ Every command fails with a single readable line (bad spec, missing config, port 
 ```bash
 SHIMWIRE_DEBUG=1 shimwire mock ./bad-spec.yaml
 ```
-
-## 🗺️ Roadmap
-
-| Phase | What                                              | Status                                                                   |
-| ----- | ------------------------------------------------- | ------------------------------------------------------------------------ |
-| 0     | Project setup, CI, `shimwire init`                | ✅ Done                                                                  |
-| 1     | HTTP client / test runner (`shimwire run`)        | ✅ Done                                                                  |
-| 2     | OpenAPI-driven mock server (`shimwire mock`)      | ✅ Done                                                                  |
-| 3     | Collection auto-scaffolding (`shimwire generate`) | ✅ Done                                                                  |
-| 4     | TUI                                               | Evaluated only if navigation becomes the real bottleneck after daily use |
-| 5     | Polish & distribution (binaries, npm, Homebrew)   | Not started                                                              |
-
-Full details, exit criteria, and estimates: [shimwire-implementation-plan.md](shimwire-implementation-plan.md).
 
 ## 🏗️ Stack
 
