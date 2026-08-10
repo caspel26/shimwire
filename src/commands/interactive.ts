@@ -26,16 +26,34 @@ import { runCollection } from "./run.ts";
 // real terminal — the run/mock/generate functions it calls into are already
 // covered by their own command-level tests.
 
+// True-color helper for the brand accents (matches the logo's blue→violet
+// gradient) — picocolors only ships fixed ANSI names, no arbitrary hex, and
+// hand-rolling this avoids pulling in a whole chalk/ansis dependency for two
+// colors. Resets the foreground only (\x1b[39m, not \x1b[0m) so it nests
+// cleanly inside pc.bold()/pc.dim() without clobbering their SGR state, and
+// is gated on pc.isColorSupported so it degrades the same way picocolors
+// does for NO_COLOR / non-TTY / CI output.
+function hex(color: string): (text: string) => string {
+  if (!pc.isColorSupported) return (text) => text;
+  const r = Number.parseInt(color.slice(1, 3), 16);
+  const g = Number.parseInt(color.slice(3, 5), 16);
+  const b = Number.parseInt(color.slice(5, 7), 16);
+  return (text: string) => `\x1b[38;2;${r};${g};${b}m${text}\x1b[39m`;
+}
+
+const blue = hex("#3b82f6");
+const violet = hex("#8b5cf6");
+
 const theme: Partial<Theme> = {
-  prefix: pc.cyan("shimwire ›"),
+  prefix: violet("shimwire ›"),
   style: {
     answer: (text: string) => pc.green(text),
-    highlight: (text: string) => pc.cyan(text),
+    highlight: (text: string) => violet(text),
     message: (text: string) => pc.bold(text),
     help: (text: string) => pc.dim(text),
     error: (text: string) => pc.red(text),
     defaultAnswer: (text: string) => pc.dim(`(${text})`),
-    key: (text: string) => pc.cyan(pc.bold(`<${text}>`)),
+    key: (text: string) => pc.bold(blue(`<${text}>`)),
   },
 };
 
@@ -68,18 +86,18 @@ function banner(): void {
 
   console.log(
     boxen(tagline + status, {
-      title: pc.bold(pc.cyan("shimwire")),
+      title: pc.bold(violet("shimwire")),
       titleAlignment: "left",
-      padding: { left: 2, right: 2, top: 0, bottom: 0 },
-      margin: { top: 1, bottom: 1, left: 0, right: 0 },
+      padding: { left: 2, right: 2, top: 1, bottom: 1 },
+      margin: { top: 1, bottom: 2, left: 0, right: 0 },
       borderStyle: "round",
-      borderColor: "cyan",
+      borderColor: "#8b5cf6",
     })
   );
 }
 
 function divider(): void {
-  console.log(pc.dim("  " + "─".repeat(45)));
+  console.log("\n" + pc.dim("  " + "─".repeat(45)) + "\n");
 }
 
 async function pressEnterToContinue(): Promise<void> {
