@@ -1,6 +1,6 @@
 <div align="center">
 
-# shimwire
+# <picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png"><source media="(prefers-color-scheme: light)" srcset="assets/logo-light.png"><img alt="shimwire" src="assets/logo-light.png" height="140"></picture>
 
 **One tool for both sides of an API you don't fully control yet: mock the parts that aren't built, and test the parts that are.**
 
@@ -9,6 +9,8 @@
 [![Bun](https://img.shields.io/badge/runtime-bun-f472b6.svg)](https://bun.sh)
 [![TypeScript](https://img.shields.io/badge/lang-TypeScript-3178c6.svg)](https://www.typescriptlang.org/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+
+<img src="assets/terminal-demo.gif" alt="Terminal recording of shimwire init, mock, generate, and run — including run catching a broken staging environment and exiting non-zero for CI." width="700">
 
 </div>
 
@@ -99,6 +101,51 @@ shimwire run users.toml --env dev --report report.html
 
 Prefer answering a few prompts instead of remembering flags? Try `shimwire cli` for a guided interactive menu.
 
+<details>
+<summary><strong>Full transcript</strong> (text version of the recording above)</summary>
+
+```console
+$ shimwire init
+Created .shimwire/ in my-project
+  .shimwire/collections/
+  .shimwire/env/
+  .shimwire/mock/
+  .shimwire/config.toml (commented-out defaults for generate/run/mock)
+  .gitignore (created — keeps .shimwire/env/*.toml out of git)
+
+$ shimwire mock ./openapi.yaml --port 4100 --no-watch &
+Loading spec from ./openapi.yaml...
+Mock server running on http://localhost:4100
+  GET    /pets  → 200
+  POST   /pets  → 201
+  GET    /pets/{id}  → 200
+
+$ shimwire generate --from ./openapi.yaml --out .shimwire/collections/pets.toml
+Loading OpenAPI spec from ./openapi.yaml...
+Loaded "Petstore" — 2 path(s)
+Generating collection...
+Writing .shimwire/collections/pets.toml...
+Wrote 3 request(s) to .shimwire/collections/pets.toml
+1 item(s) flagged for manual review — see file header.
+
+$ shimwire run .shimwire/collections/pets.toml --env dev
+✓ list_pets       GET    /pets  200  7ms
+✓ create_pet      POST   /pets  201  1ms
+✓ get_pet         GET    /pets/44bf8c98-8527-4f60-b5d0-3b68dca9685a  200  0ms
+
+$ shimwire run .shimwire/collections/pets.toml --env staging --fail-on-error
+✗ list_pets       Unable to connect. Is the computer able to access the url?
+✗ create_pet      Unable to connect. Is the computer able to access the url?
+✗ get_pet         Unknown or not-yet-run step "steps.create_pet"
+
+$ echo $?
+1
+```
+
+That last block is the whole point: the same collection that runs clean against `dev` catches a broken `staging` environment, and the nonzero exit code is exactly what `--fail-on-error` is for in a CI job.
+
+</details>
+
 ## 🧰 Commands
 
 ### `shimwire init`
@@ -108,6 +155,10 @@ Scaffolds `.shimwire/{collections,env,mock}/`, a starter `.shimwire/config.toml`
 ### `shimwire cli`
 
 Launches an interactive menu — pick "Mock", "Generate", "Run", or "Init" and answer a few validated prompts instead of remembering flags. Pre-fills answers from `.shimwire/config.toml` when present. Picking "Mock" starts the server in the background and returns to the menu, so you can immediately pick "Run" to test against it; after "Generate" it offers to run the collection it just wrote. Useful when you're exploring a new spec rather than scripting something repeatable.
+
+<p align="center">
+  <img src="assets/cli-demo.gif" alt="Terminal recording of the shimwire cli guided menu: scaffolding a project, starting a mock server, generating a collection, and running it — all from prompts instead of flags." width="700">
+</p>
 
 ### `shimwire mock [spec]`
 
