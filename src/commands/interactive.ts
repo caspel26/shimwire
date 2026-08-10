@@ -57,12 +57,23 @@ const theme: Partial<Theme> = {
   },
 };
 
-// select() has its own theme extension (description/cursor icon) on top of
-// the base Theme — left unset it falls back to @inquirer/select's hardcoded
-// cyan, which clashed with the rest of the brand palette above.
+// select() has its own theme extension (description/cursor icon/help line)
+// on top of the base Theme. Left unset, description falls back to
+// @inquirer/select's hardcoded cyan (clashing with the rest of the brand
+// palette), and both description and the "↑↓ navigate • ⏎ select" help line
+// render glued directly under the choice list with no breathing room —
+// select's own renderer joins them with '\n', not a blank line, and that
+// layout isn't reachable through anything less than reimplementing these two
+// style functions. keysHelpTip's body below matches the library default
+// (see @inquirer/select/dist/index.js) plus a leading blank line.
 const selectTheme = {
   ...theme,
-  style: { ...theme.style, description: (text: string) => blue(text) },
+  style: {
+    ...theme.style,
+    description: (text: string) => "\n" + blue(text),
+    keysHelpTip: (keys: [string, string][]) =>
+      "\n" + keys.map(([key, action]) => `${pc.bold(key)} ${pc.dim(action)}`).join(pc.dim(" • ")),
+  },
 };
 
 export const notEmpty = (label: string) => (value: string) =>
