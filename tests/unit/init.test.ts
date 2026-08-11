@@ -17,7 +17,7 @@ describe("shimwire init", () => {
     rmSync(cwd, { recursive: true, force: true });
   });
 
-  test("scaffolds .shimwire/ with collections, env, and mock dirs", async () => {
+  test("scaffolds .shimwire/ with collections, env, mock, and workflows dirs", async () => {
     const proc = Bun.spawn(["bun", "run", CLI_PATH, "init"], { cwd });
     const exitCode = await proc.exited;
 
@@ -25,6 +25,7 @@ describe("shimwire init", () => {
     expect(existsSync(join(cwd, ".shimwire", "collections"))).toBe(true);
     expect(existsSync(join(cwd, ".shimwire", "env", "dev.toml"))).toBe(true);
     expect(existsSync(join(cwd, ".shimwire", "mock"))).toBe(true);
+    expect(existsSync(join(cwd, ".shimwire", "workflows"))).toBe(true);
     expect(existsSync(join(cwd, ".shimwire", "config.toml"))).toBe(true);
   });
 

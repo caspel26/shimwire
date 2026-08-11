@@ -5,7 +5,7 @@ import type { Command } from "commander";
 import { withErrorHandling } from "../core/cliError.ts";
 import { log } from "../core/logger.ts";
 
-const SCAFFOLD_DIRS = ["collections", "env", "mock"];
+const SCAFFOLD_DIRS = ["collections", "env", "mock", "workflows"];
 
 const DEV_ENV_TOML = `base_url = "http://localhost:8000"\n`;
 

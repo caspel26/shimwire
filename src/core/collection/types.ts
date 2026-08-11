@@ -33,10 +33,23 @@ export const CollectionSchema = z.object({
   meta: z.object({
     name: z.string().min(1),
     base_url: z.string().min(1),
+    // Named request groups pulled in from .shimwire/workflows/<name>.toml —
+    // e.g. include = ["authentication_flow"] to reuse a login step across
+    // collections instead of duplicating it in every one that needs auth.
+    include: z.array(z.string()).optional(),
   }),
   request: z.array(RequestStepSchema).min(1),
 });
 export type Collection = z.infer<typeof CollectionSchema>;
+
+// A workflow is just a reusable request-list fragment — no [meta]/base_url
+// of its own, since it inherits whatever collection includes it. Kept as a
+// separate schema (rather than a partial Collection) so a workflow file
+// can't accidentally declare its own `include` and create a cycle.
+export const WorkflowSchema = z.object({
+  request: z.array(RequestStepSchema).min(1),
+});
+export type Workflow = z.infer<typeof WorkflowSchema>;
 
 export const EnvironmentSchema = z.record(
   z.string(),

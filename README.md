@@ -283,6 +283,43 @@ depends_on = ["create_user"]
 
 Variables resolve from three sources: `env.*` (from `.shimwire/env/<name>.toml`), `faker.*` (any `@faker-js/faker` method path), and `steps.<id>.*` (a prior request's status/response in the same run).
 
+### Reusable workflows
+
+If several collections need the same setup steps — logging in before every request, say — pull them out into `.shimwire/workflows/<name>.toml` once and `include` it wherever it's needed, instead of copy-pasting the same requests into every collection:
+
+```toml
+# .shimwire/workflows/authentication_flow.toml
+[[request]]
+id = "login"
+method = "POST"
+path = "/auth/login"
+[request.body]
+username = "{{env.username}}"
+password = "{{env.password}}"
+```
+
+```toml
+# .shimwire/collections/users.toml
+[meta]
+name = "Users API"
+base_url = "{{env.base_url}}"
+include = ["authentication_flow"]
+
+[[request]]
+id = "get_user"
+method = "GET"
+path = "/users/42"
+depends_on = ["login"]
+[request.headers]
+Authorization = "Bearer {{steps.login.response.token}}"
+```
+
+A workflow is just a request list — no `[meta]`/`base_url` of its own, it inherits the including collection's. Included requests run before the collection's own by default, and their ids/steps work exactly like any other request (`depends_on`, `steps.login.response.*`, etc.) — `run` doesn't know or care that `login` came from a different file.
+
+<p align="center">
+  <img src="assets/workflow-demo.gif" alt="Terminal recording of a shimwire collection including a reusable authentication_flow workflow, then running it — login executes first and its response feeds get_user's Authorization header." width="700">
+</p>
+
 ## 🩹 Errors & debugging
 
 Every command fails with a single readable line (bad spec, missing config, port already in use, etc.) and exit code 1, instead of a raw stack trace. Set `SHIMWIRE_DEBUG=1` to see the full stack when you need it:
