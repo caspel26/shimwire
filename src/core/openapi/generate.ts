@@ -13,9 +13,14 @@ export interface GeneratedRequest {
 }
 
 export interface GenerateResult {
-  meta: { name: string; base_url: string };
+  meta: { name: string; base_url: string; include?: string[] };
   requests: GeneratedRequest[];
   reviewNotes: string[];
+  /** Set when a login-shaped operation was detected and pulled out into a
+   *  reusable workflow instead of being generated as a top-level request —
+   *  the caller (the `generate` command) is responsible for writing this to
+   *  .shimwire/workflows/<name>.toml. */
+  workflow?: { name: string; requests: GeneratedRequest[] };
 }
 
 export interface GenerateOptions {
@@ -43,6 +48,20 @@ function deriveId(op: RouteOperation, seen: Set<string>): string {
   }
   seen.add(id);
   return id;
+}
+
+export interface OperationWithId {
+  op: RouteOperation;
+  id: string;
+}
+
+// The same id derivation generateCollection/buildWorkflowRequests use
+// internally, exposed so callers that need to show or validate ids ahead of
+// time (the interactive workflow picker, --endpoints validation) see exactly
+// what a request would actually be named.
+export function listOperationsWithIds(spec: OpenAPIV3.Document): OperationWithId[] {
+  const seenIds = new Set<string>();
+  return listOperations(spec).map((op) => ({ op, id: deriveId(op, seenIds) }));
 }
 
 interface PathParamOccurrence {
@@ -82,6 +101,49 @@ function buildAuthBlock(
   }
   if (scheme.type === "apiKey" && scheme.in === "header") {
     return { type: "apiKey", header: scheme.name, value: `{{env.${toSnakeCase(schemeName)}}}` };
+  }
+  return undefined;
+}
+
+interface LoginDetection {
+  id: string;
+  op: RouteOperation;
+  tokenField: string;
+}
+
+const LOGIN_OPERATION_RE = /login|sign[_-]?in|authenticate/i;
+const TOKEN_FIELD_RE = /token|jwt/i;
+
+// Scans a 2xx JSON response schema for a field that plausibly holds an auth
+// token — this is what lets a generated request reference
+// {{steps.login.response.<field>}} instead of guessing a static env var.
+function findTokenField(operation: OpenAPIV3.OperationObject): string | undefined {
+  for (const [status, response] of Object.entries(operation.responses ?? {})) {
+    if (!status.startsWith("2")) continue;
+    const schema = (response as OpenAPIV3.ResponseObject).content?.["application/json"]?.schema as
+      OpenAPIV3.SchemaObject | undefined;
+    const match = Object.keys(schema?.properties ?? {}).find((name) => TOKEN_FIELD_RE.test(name));
+    if (match) return match;
+  }
+  return undefined;
+}
+
+// Looks for a POST operation that reads as a login endpoint (by
+// operationId or path) whose response has a token-shaped field. Deliberately
+// conservative — anything short of a token field in the response schema
+// falls back to the pre-existing static {{env.token}} behavior below,
+// since a wrong guess here would silently point every request at the wrong
+// place.
+function detectLoginOperation(
+  withIds: { op: RouteOperation; id: string }[]
+): LoginDetection | undefined {
+  for (const { op, id } of withIds) {
+    if (op.method !== "post") continue;
+    const looksLikeLogin =
+      LOGIN_OPERATION_RE.test(op.operation.operationId ?? "") || LOGIN_OPERATION_RE.test(op.path);
+    if (!looksLikeLogin) continue;
+    const tokenField = findTokenField(op.operation);
+    if (tokenField) return { id, op, tokenField };
   }
   return undefined;
 }
@@ -158,15 +220,105 @@ function requestBodyExample(operation: OpenAPIV3.OperationObject): unknown {
   return schema ? stripNulls(generateFakeValue(schema)) : undefined;
 }
 
+// Shared by generateCollection (every operation) and buildWorkflowRequests
+// (a hand-picked subset) — everything about turning one operation into one
+// GeneratedRequest lives here so the two callers can't drift apart.
+function buildRequest(
+  op: RouteOperation,
+  id: string,
+  createByBasePath: Map<string, string>,
+  spec: OpenAPIV3.Document,
+  reviewNotes: string[],
+  login: LoginDetection | undefined,
+  preferredSecurityScheme: string | undefined
+): GeneratedRequest {
+  const { path, method, operation } = op;
+  let resolvedPath = path;
+  const dependsOn = new Set<string>();
+
+  for (const { param, resourceBase } of pathParamOccurrences(path)) {
+    const createId = createByBasePath.get(resourceBase);
+    if (createId && createId !== id) {
+      dependsOn.add(createId);
+      resolvedPath = resolvedPath.replace(`{${param}}`, `{{steps.${createId}.response.${param}}}`);
+      reviewNotes.push(
+        `"${id}" was guessed to depend on "${createId}" for its "${param}" path parameter, assuming the response includes a matching "${param}" field — please confirm.`
+      );
+    } else {
+      resolvedPath = resolvedPath.replace(`{${param}}`, "REPLACE_ME");
+      reviewNotes.push(
+        `"${id}" has an unresolved "${param}" path parameter — replace "REPLACE_ME" in its path.`
+      );
+    }
+  }
+
+  let auth = resolveAuth(spec, operation, reviewNotes, id, preferredSecurityScheme);
+  if (login && id !== login.id && auth?.type === "bearer" && auth.token === "{{env.token}}") {
+    auth = { type: "bearer", token: `{{steps.${login.id}.response.${login.tokenField}}}` };
+    dependsOn.add(login.id);
+    reviewNotes.push(
+      `"${id}" depends on the auto-detected login step "${login.id}" (see .shimwire/workflows/authentication_flow.toml) for its bearer token instead of a static {{env.token}} — please confirm.`
+    );
+  }
+
+  const body = requestBodyExample(operation);
+
+  const request: GeneratedRequest = { id, method: method.toUpperCase(), path: resolvedPath };
+  if (dependsOn.size > 0) request.depends_on = [...dependsOn];
+  if (auth) request.auth = auth;
+  if (body !== undefined) request.body = body;
+  return request;
+}
+
+export interface BuildWorkflowResult {
+  requests: GeneratedRequest[];
+  reviewNotes: string[];
+}
+
+// Builds a standalone .shimwire/workflows/<name>.toml request list from a
+// hand-picked subset of a spec's operations (by their generate-derived id —
+// the same ids shown in the interactive picker and accepted by `--endpoints`).
+// Dependency linking only considers other requests within the picked subset,
+// not the whole spec — a workflow file has no [meta]/base_url of its own and
+// is meant to be self-contained, so a dependency on something outside the
+// selection would produce a dangling reference once included elsewhere.
+export function buildWorkflowRequests(
+  spec: OpenAPIV3.Document,
+  selectedIds: string[],
+  options: GenerateOptions = {}
+): BuildWorkflowResult {
+  const reviewNotes: string[] = [];
+  const withIds = listOperationsWithIds(spec);
+
+  const wanted = new Set(selectedIds);
+  const targets = withIds.filter(({ id }) => wanted.has(id));
+
+  const createByBasePath = new Map<string, string>();
+  for (const { op, id } of targets) {
+    if (op.method === "post") createByBasePath.set(op.path, id);
+  }
+
+  const requests = targets.map(({ op, id }) =>
+    buildRequest(
+      op,
+      id,
+      createByBasePath,
+      spec,
+      reviewNotes,
+      undefined,
+      options.preferredSecurityScheme
+    )
+  );
+
+  return { requests, reviewNotes };
+}
+
 export function generateCollection(
   spec: OpenAPIV3.Document,
   options: GenerateOptions = {}
 ): GenerateResult {
-  const operations = listOperations(spec);
-  const seenIds = new Set<string>();
   const reviewNotes: string[] = [];
-
-  const withIds = operations.map((op) => ({ op, id: deriveId(op, seenIds) }));
+  const withIds = listOperationsWithIds(spec);
 
   const createByBasePath = new Map<string, string>();
   for (const { op, id } of withIds) {
@@ -175,43 +327,45 @@ export function generateCollection(
     }
   }
 
-  const requests: GeneratedRequest[] = withIds.map(({ op, id }) => {
-    const { path, method, operation } = op;
-    let resolvedPath = path;
-    const dependsOn = new Set<string>();
+  const login = detectLoginOperation(withIds);
 
-    for (const { param, resourceBase } of pathParamOccurrences(path)) {
-      const createId = createByBasePath.get(resourceBase);
-      if (createId && createId !== id) {
-        dependsOn.add(createId);
-        resolvedPath = resolvedPath.replace(
-          `{${param}}`,
-          `{{steps.${createId}.response.${param}}}`
-        );
-        reviewNotes.push(
-          `"${id}" was guessed to depend on "${createId}" for its "${param}" path parameter, assuming the response includes a matching "${param}" field — please confirm.`
-        );
-      } else {
-        resolvedPath = resolvedPath.replace(`{${param}}`, "REPLACE_ME");
-        reviewNotes.push(
-          `"${id}" has an unresolved "${param}" path parameter — replace "REPLACE_ME" in its path.`
-        );
-      }
-    }
+  const requests: GeneratedRequest[] = withIds
+    .filter(({ id }) => id !== login?.id)
+    .map(({ op, id }) =>
+      buildRequest(
+        op,
+        id,
+        createByBasePath,
+        spec,
+        reviewNotes,
+        login,
+        options.preferredSecurityScheme
+      )
+    );
 
-    const auth = resolveAuth(spec, operation, reviewNotes, id, options.preferredSecurityScheme);
-    const body = requestBodyExample(operation);
-
-    const request: GeneratedRequest = { id, method: method.toUpperCase(), path: resolvedPath };
-    if (dependsOn.size > 0) request.depends_on = [...dependsOn];
-    if (auth) request.auth = auth;
-    if (body !== undefined) request.body = body;
-    return request;
-  });
+  let workflow: GenerateResult["workflow"];
+  if (login) {
+    const loginBody = requestBodyExample(login.op.operation);
+    const loginRequest: GeneratedRequest = {
+      id: login.id,
+      method: login.op.method.toUpperCase(),
+      path: login.op.path,
+    };
+    if (loginBody !== undefined) loginRequest.body = loginBody;
+    workflow = { name: "authentication_flow", requests: [loginRequest] };
+    reviewNotes.push(
+      `Detected a login-shaped operation and extracted it into .shimwire/workflows/authentication_flow.toml as "${login.id}" — its request body has faked credentials, replace them (e.g. with {{env.username}}/{{env.password}}) before relying on this in CI.`
+    );
+  }
 
   return {
-    meta: { name: spec.info?.title ?? "Generated collection", base_url: "{{env.base_url}}" },
+    meta: {
+      name: spec.info?.title ?? "Generated collection",
+      base_url: "{{env.base_url}}",
+      ...(workflow ? { include: [workflow.name] } : {}),
+    },
     requests,
     reviewNotes,
+    workflow,
   };
 }

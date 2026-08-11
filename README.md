@@ -157,7 +157,7 @@ Scaffolds `.shimwire/{collections,env,mock}/`, a starter `.shimwire/config.toml`
 
 ### `shimwire cli`
 
-Launches an interactive menu — pick "Mock", "Generate", "Run", or "Init" and answer a few validated prompts instead of remembering flags. Pre-fills answers from `.shimwire/config.toml` when present. Picking "Mock" starts the server in the background and returns to the menu, so you can immediately pick "Run" to test against it; after "Generate" it offers to run the collection it just wrote. Useful when you're exploring a new spec rather than scripting something repeatable.
+Launches an interactive menu — pick "Mock", "Generate", "Workflow", "Run", or "Init" and answer a few validated prompts instead of remembering flags. Pre-fills answers from `.shimwire/config.toml` when present. Picking "Mock" starts the server in the background and returns to the menu, so you can immediately pick "Run" to test against it; after "Generate" it offers to run the collection it just wrote; "Workflow" lists every endpoint in a spec as a checkbox list to build a `.shimwire/workflows/<name>.toml` without knowing ids up front. Useful when you're exploring a new spec rather than scripting something repeatable.
 
 <p align="center">
   <img src="assets/cli-demo.gif" alt="Terminal recording of the shimwire cli guided menu: scaffolding a project, starting a mock server, generating a collection, and running it — all from prompts instead of flags." width="700">
@@ -188,6 +188,27 @@ Auto-scaffolds a runnable collection from a spec, guessing request chaining and 
 | `-s, --security <schemeName>` | first auto-configurable scheme | When a spec offers multiple auth alternatives, pin one by name.                              |
 | `-l, --allow-local`           | off                            | Same SSRF-guard override as `mock`.                                                          |
 | `-k, --insecure`              | off                            | Same TLS bypass as `mock`.                                                                   |
+
+If the spec has a login-shaped operation (by operationId/path, e.g. `POST /auth/login`) whose response has a token-shaped field, `generate` extracts it into `.shimwire/workflows/authentication_flow.toml` (see [Reusable workflows](#reusable-workflows)) instead of generating it as a top-level request, and every bearer-secured request gets `depends_on = ["login"]` with its token pointed at the login step's actual response field — instead of the static `{{env.token}}` guess. Always flagged for review: the login step's body has faked credentials, since real ones can't be guessed.
+
+### `shimwire workflow`
+
+Hand-pick specific endpoints from a spec and save them as a reusable `.shimwire/workflows/<name>.toml` — for building a workflow yourself rather than relying on `generate`'s login auto-detection above, e.g. a multi-step flow that isn't just a single login call.
+
+| Flag                          | Default                        | Description                                                                                  |
+| ----------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `-f, --from <spec>`           | —                              | Path or URL to an OpenAPI 3.x / Swagger 2.0 spec. Falls back to `[generate].from` in config. |
+| `-n, --name <workflowName>`   | —                              | Workflow file to write, under `.shimwire/workflows/`.                                        |
+| `-e, --endpoints <ids>`       | —                              | Comma-separated request ids to include.                                                      |
+| `-s, --security <schemeName>` | first auto-configurable scheme | Same as `generate`.                                                                          |
+| `-l, --allow-local`           | off                            | Same SSRF-guard override as `mock`.                                                          |
+| `-k, --insecure`              | off                            | Same TLS bypass as `mock`.                                                                   |
+
+```bash
+shimwire workflow --from openapi.yaml --name authentication_flow --endpoints login
+```
+
+Don't know the ids offhand? `shimwire cli` → "Workflow" lists every operation in the spec as a checkbox list (method, path, and the id it'll get) instead of requiring `--endpoints` up front.
 
 ### `shimwire run <collection>`
 

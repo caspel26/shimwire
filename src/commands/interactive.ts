@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { confirm, input, select, Separator } from "@inquirer/prompts";
+import { checkbox, confirm, input, select, Separator } from "@inquirer/prompts";
 import type { Theme } from "@inquirer/core";
 import boxen from "boxen";
 import type { Command } from "commander";
@@ -9,10 +9,13 @@ import pc from "picocolors";
 import { withErrorHandling } from "../core/cliError.ts";
 import { loadConfig } from "../core/config/config.ts";
 import { log } from "../core/logger.ts";
+import { listOperationsWithIds } from "../core/openapi/generate.ts";
+import { loadOpenApiSpec } from "../core/openapi/loader.ts";
 import { runGenerate } from "./generate.ts";
 import { runInit } from "./init.ts";
 import { runMock } from "./mock.ts";
 import { runCollection } from "./run.ts";
+import { runWorkflow } from "./workflow.ts";
 
 // Testing note: @inquirer/prompts' select() reads arrow-key input in raw
 // mode, which needs a real TTY — piped stdin (what CI/most test runners give
@@ -175,6 +178,57 @@ async function promptGenerate(): Promise<void> {
   }
 }
 
+async function promptWorkflow(): Promise<void> {
+  const config = (await loadConfig()).generate ?? {};
+
+  const from = await input({
+    message: "Spec path or URL:",
+    default: config.from,
+    theme,
+    validate: notEmpty("Spec path"),
+  });
+  const allowLocal = await confirm({
+    message: "Allow fetching from localhost/private-network URLs?",
+    default: config.allow_local ?? false,
+    theme,
+  });
+  const insecure = await confirm({
+    message: "Skip TLS certificate verification (self-signed local certs)?",
+    default: config.insecure ?? false,
+    theme,
+  });
+
+  divider();
+  log.dim(`Loading OpenAPI spec from ${from}...`);
+  const spec = await loadOpenApiSpec(from, { allowLocal, insecure });
+  const operations = listOperationsWithIds(spec);
+
+  if (operations.length === 0) {
+    log.warn("This spec has no operations to pick from.");
+    return;
+  }
+
+  const endpoints = await checkbox({
+    message: "Which endpoints belong in this workflow?",
+    theme: selectTheme,
+    required: true,
+    choices: operations.map(({ op, id }) => ({
+      name: `${op.method.toUpperCase().padEnd(6)} ${op.path}  ${pc.dim(`(${id})`)}`,
+      value: id,
+    })),
+  });
+
+  const name = await input({
+    message: "Workflow name:",
+    default: "authentication_flow",
+    theme,
+    validate: notEmpty("Workflow name"),
+  });
+
+  divider();
+  await runWorkflow({ from, name, endpoints, allowLocal, insecure });
+}
+
 async function promptMock(): Promise<void> {
   const config = (await loadConfig()).mock ?? {};
 
@@ -327,6 +381,11 @@ export function registerInteractiveCommand(program: Command): void {
                 description: "Auto-scaffold a runnable collection from a spec",
               },
               {
+                name: "🔗 Workflow",
+                value: "workflow",
+                description: "Pick endpoints from a spec and save them as a reusable workflow",
+              },
+              {
                 name: "▶️  Run",
                 value: "run",
                 description: "Run a collection against a real backend",
@@ -351,6 +410,7 @@ export function registerInteractiveCommand(program: Command): void {
           try {
             if (action === "mock") await promptMock();
             else if (action === "generate") await promptGenerate();
+            else if (action === "workflow") await promptWorkflow();
             else if (action === "run") await promptRun();
             else if (action === "init") await runInit();
           } catch (err) {
