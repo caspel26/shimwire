@@ -25,6 +25,7 @@ Repo is public. `main` requires the `test` CI check to pass before merging a PR 
 
 ## Working conventions
 
+- **Git operations (branch, commit, push, open a PR) happen only when explicitly requested, each time — never as an automatic follow-through after finishing a change.** Feature scope and planning are collaborative (decide together what to build), and so is the actual coding. But landing it in git is a separate, deliberate step the user asks for — don't assume "the work is done" implies "commit and push it."
 - The parser, schema-aware faker, and variable resolver are shared core modules imported by both `mock` and `run` commands — don't fork logic between the two entry points.
 - Collections and environments are TOML, git-diffable, human-editable. Keep new config formats consistent with that (no binary/proprietary formats).
 - Variable interpolation in v1 supports exactly three prefixes: `env.`, `faker.`, `steps.`. No conditionals or loops — deliberate scope limit, don't add them without checking with the user first.
