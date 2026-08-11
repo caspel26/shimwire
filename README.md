@@ -1,6 +1,10 @@
 <div align="center">
 
-<img src="assets/logo-light.png" alt="shimwire" width="420">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.png">
+  <img src="assets/logo-light.png" alt="shimwire" width="420">
+</picture>
 
 **One tool for both sides of an API you don't fully control yet: mock the parts that aren't built, and test the parts that are.**
 
