@@ -56,7 +56,15 @@ async function ensureGitignoreEntry(
   return "appended";
 }
 
-export async function runInit(): Promise<void> {
+export interface PerformInitResult {
+  root: string;
+  dirs: string[];
+  gitignoreResult: "created" | "appended" | "already-present";
+}
+
+// The actual work, no console output — reused by the CLI command below and
+// by the MCP init_project tool.
+export async function performInit(): Promise<PerformInitResult> {
   const root = join(process.cwd(), ".shimwire");
 
   if (existsSync(root)) {
@@ -69,16 +77,23 @@ export async function runInit(): Promise<void> {
   await writeFile(join(root, "env", "dev.toml"), DEV_ENV_TOML);
   await writeFile(join(root, "config.toml"), CONFIG_TOML);
 
+  const gitignoreResult = await ensureGitignoreEntry(process.cwd());
+
+  return { root, dirs: SCAFFOLD_DIRS, gitignoreResult };
+}
+
+export async function runInit(): Promise<void> {
+  const result = await performInit();
+
   log.success(`Created .shimwire/ in ${process.cwd()}`);
-  for (const dir of SCAFFOLD_DIRS) {
+  for (const dir of result.dirs) {
     log.dim(`  .shimwire/${dir}/`);
   }
   log.dim(`  .shimwire/config.toml (commented-out defaults for generate/run/mock)`);
 
-  const gitignoreResult = await ensureGitignoreEntry(process.cwd());
-  if (gitignoreResult === "created") {
+  if (result.gitignoreResult === "created") {
     log.dim(`  .gitignore (created — keeps .shimwire/env/*.toml out of git)`);
-  } else if (gitignoreResult === "appended") {
+  } else if (result.gitignoreResult === "appended") {
     log.dim(`  .gitignore (updated — added a rule to keep .shimwire/env/*.toml out of git)`);
   }
 }

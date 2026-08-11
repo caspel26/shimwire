@@ -232,6 +232,33 @@ shimwire run authentication_flow.toml --env dev
 
 `run` detects which shape a file is (a collection has `[meta]`, a workflow doesn't) and, for a bare workflow, resolves `{{env.base_url}}` from `--env` exactly like a hand-written collection would.
 
+### `shimwire mcp`
+
+Starts an [MCP](https://modelcontextprotocol.io) server (stdio transport) exposing shimwire's spec/collection/workflow tools to an AI client — Claude Desktop, Claude Code, or anything else that speaks MCP. Point a client's config at it:
+
+```json
+{ "mcpServers": { "shimwire": { "command": "bunx", "args": ["shimwire", "mcp"] } } }
+```
+
+The recording below isn't a shimwire subcommand — it's [`assets/mcp-demo-client.ts`](assets/mcp-demo-client.ts), a small standalone script standing in for an AI agent, so you can see real tool calls and real responses instead of trusting a description:
+
+<p align="center">
+  <img src="assets/mcp-demo.gif" alt="assets/mcp-demo-client.ts, a stand-in AI agent, driving the real shimwire mcp server: load_spec discovers a login and get_user operation, generate_collection writes a collection and auto-extracts the login into a workflow, run_collection executes both and reports 2 passed." width="700">
+</p>
+
+| Tool                                  | Does                                                                                                                   |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `load_spec`                           | Parse a spec, list every operation's id/method/path — see what's actually available before generating anything.        |
+| `init_project`                        | Scaffold `.shimwire/`.                                                                                                 |
+| `generate_collection`                 | Same as `shimwire generate` — full collection from a spec, login auto-detected into a workflow.                        |
+| `create_workflow`                     | Same as `shimwire workflow` — hand-picked endpoints saved as a named workflow.                                         |
+| `list_collections` / `list_workflows` | See what's already in the project.                                                                                     |
+| `run_collection`                      | Run a collection or workflow, get structured pass/fail back per step — so the result can be checked, not just assumed. |
+
+Every tool accepts an optional `cwd`, since an MCP server is typically one long-running process reused across projects/sessions rather than started fresh per-project the way a CLI invocation is. Tool calls are executed one at a time on the server regardless of client pipelining — JSON-RPC over stdio allows a client to fire several calls without waiting for a response first, and two calls touching different directories at once would otherwise race on the server process's working directory. A client that needs one call's result before issuing the next (e.g. `generate_collection`'s file existing before `run_collection` reads it) still has to await it first, same as any RPC API — the server can't infer that dependency on its own.
+
+Mock server lifecycle (`start_mock`/`stop_mock`) isn't exposed yet — a background server surviving across tool calls needs its own session-lifecycle design, deferred for now.
+
 ## ⚙️ Configuration
 
 `generate`, `run`, and `mock` all read defaults from a per-project `.shimwire/config.toml` — useful for a spec/backend you test against repeatedly. Any CLI flag you do pass overrides the corresponding config value; nothing else changes.

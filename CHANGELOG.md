@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-11
+
+### Added
+
+- **`shimwire mcp`** — an [MCP](https://modelcontextprotocol.io) server (stdio
+  transport) exposing shimwire to AI clients (Claude Desktop, Claude Code, or
+  anything else that speaks MCP), with 7 tools: `load_spec`, `init_project`,
+  `generate_collection`, `create_workflow`, `list_collections`,
+  `list_workflows`, `run_collection`. An agent can inspect a spec, scaffold a
+  project, and verify the result actually works, without knowing shimwire's
+  flags — see the README's `shimwire mcp` section for the client config and
+  a real recorded session.
+
+### Changed
+
+- `generate.ts`, `workflow.ts`, and `init.ts` are each split into a
+  `performX()` core function (does the work, no console output, returns
+  structured data) and a thin CLI wrapper that logs based on the result —
+  the same shape `run.ts`/`executeCollection` already had. Needed so the MCP
+  tools could reuse the exact same logic as the CLI commands without any
+  risk of a stray `console.log` corrupting the MCP stdio JSON-RPC stream.
+- Fixed a real concurrency bug caught while testing the MCP server: JSON-RPC
+  over stdio lets a client pipeline tool calls without awaiting a response
+  first, so per-call `cwd` handling via `process.chdir` could race between
+  two in-flight calls. Fixed with a serializing queue; a client still needs
+  to await a call before issuing one that depends on its result (e.g.
+  `generate_collection`'s file existing before `run_collection` reads it) —
+  no server-side mechanism can infer that dependency on its own.
+
 ## [0.3.0] - 2026-08-11
 
 ### Added

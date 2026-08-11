@@ -2,15 +2,12 @@ import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { Command } from "commander";
-import { filterToTarget, topologicalSort } from "../core/collection/depGraph.ts";
 import { loadEnvironment, loadRunnable } from "../core/collection/parser.ts";
 import { withErrorHandling } from "../core/cliError.ts";
 import { loadConfig } from "../core/config/config.ts";
-import { executeStep } from "../core/executor/httpClient.ts";
-import { formatError, formatResult } from "../core/executor/formatter.ts";
-import { renderHtmlReport, toReportEntry, type ReportEntry } from "../core/executor/htmlReport.ts";
+import { executeCollection } from "../core/executor/collectionRunner.ts";
+import { renderHtmlReport } from "../core/executor/htmlReport.ts";
 import { log } from "../core/logger.ts";
-import { resolveString, type StepResult } from "../core/variables/resolver.ts";
 
 export interface RunOptions {
   env: string;
@@ -20,7 +17,7 @@ export interface RunOptions {
   report?: string;
 }
 
-function resolveCollectionPath(input: string): string {
+export function resolveCollectionPath(input: string): string {
   if (existsSync(input)) return input;
   const scopedCollection = join(process.cwd(), ".shimwire", "collections", input);
   if (existsSync(scopedCollection)) return scopedCollection;
@@ -31,7 +28,7 @@ function resolveCollectionPath(input: string): string {
   );
 }
 
-function resolveEnvPath(name: string): string {
+export function resolveEnvPath(name: string): string {
   const path = join(process.cwd(), ".shimwire", "env", `${name}.toml`);
   if (!existsSync(path)) {
     throw new Error(`Environment not found: ${path}`);
@@ -49,41 +46,11 @@ export async function runCollection(collectionArg: string, options: RunOptions):
   const collection = await loadRunnable(collectionPath);
   const env = await loadEnvironment(envPath);
 
-  let steps = topologicalSort(collection.request);
-  if (options.only) {
-    steps = filterToTarget(steps, options.only);
-  }
-
-  const stepResults: Record<string, StepResult> = {};
-  const reportEntries: ReportEntry[] = [];
-  let anyFailed = false;
-  const baseUrl = resolveString(collection.meta.base_url, { env, steps: stepResults });
-
-  for (const step of steps) {
-    try {
-      const result = await executeStep(
-        step,
-        baseUrl,
-        { env, steps: stepResults },
-        { insecure: options.insecure }
-      );
-      stepResults[step.id] = { status: result.status, response: result.response };
-      log.info(formatResult(result));
-      reportEntries.push(toReportEntry(result));
-      if (!result.ok) anyFailed = true;
-    } catch (err) {
-      anyFailed = true;
-      const message = err instanceof Error ? err.message : String(err);
-      log.info(formatError(step.id, message));
-      reportEntries.push({
-        id: step.id,
-        method: step.method,
-        path: step.path,
-        ok: false,
-        error: message,
-      });
-    }
-  }
+  const { reportEntries, anyFailed } = await executeCollection(collection, env, {
+    only: options.only,
+    insecure: options.insecure,
+    onStep: (_entry, formatted) => log.info(formatted),
+  });
 
   if (report) {
     const html = renderHtmlReport(reportEntries, { collection: collectionPath, env: options.env });
