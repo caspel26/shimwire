@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-08-11
+
+### Added
+
+- **Reusable workflows** — `.shimwire/workflows/<name>.toml` holds a request list
+  with no `[meta]`/`base_url` of its own; any collection can pull it in via
+  `include = ["name"]` in `[meta]`, merged in before the collection's own
+  requests. Lets a login step (or any other setup) be defined once and reused
+  across every collection that needs it, instead of copy-pasted into each one.
+  `shimwire init` now scaffolds `.shimwire/workflows/` alongside the existing
+  directories.
+- **`shimwire workflow`** — hand-pick specific endpoints from a spec and save
+  them as a workflow: `shimwire workflow --from <spec> --name <name> --endpoints
+<id1,id2,...>`. Unknown ids are skipped with a warning rather than failing
+  outright.
+- **`shimwire cli`** gets a "Workflow" menu entry — lists every operation in a
+  spec as a checkbox list (method, path, and the id it'll get) to build a
+  workflow interactively without knowing ids up front.
+- **`shimwire generate`** now detects a login-shaped operation (by
+  operationId/path) whose response has a token-shaped field, and extracts it
+  into `.shimwire/workflows/authentication_flow.toml` automatically — every
+  bearer-secured request then depends on it and reads its token from the
+  login step's actual response field, instead of a static `{{env.token}}`
+  guess.
+- Published to npm as [`shimwire`](https://www.npmjs.com/package/shimwire) —
+  `npm install -g shimwire` or `bunx shimwire`. No build step; ships the raw
+  TypeScript off `src/cli.ts`'s `#!/usr/bin/env bun` shebang, which npm's bin
+  mechanism respects directly on both POSIX and Windows.
+
+### Fixed
+
+- CI had been failing on every run since mid-July regardless of actual
+  pass/fail counts — Bun doesn't clear a previously-set `process.exitCode`
+  when reassigned `undefined` (only an explicit falsy number sticks), so one
+  test's intentional "sets exit code 1" mutation was silently surviving into
+  every later test file.
+
 ## [0.1.0] - 2026-08-10
 
 First public release. Phases 0–3 of the [implementation plan](shimwire-implementation-plan.md)
