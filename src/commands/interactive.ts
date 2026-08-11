@@ -133,6 +133,12 @@ function listCollections(): string[] {
   return readdirSync(dir).filter((file) => file.endsWith(".toml"));
 }
 
+function listWorkflows(): string[] {
+  const dir = join(process.cwd(), ".shimwire", "workflows");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((file) => file.endsWith(".toml"));
+}
+
 async function promptGenerate(): Promise<void> {
   const config = (await loadConfig()).generate ?? {};
 
@@ -276,12 +282,28 @@ async function promptRun(preset?: string): Promise<void> {
 
   if (!collection) {
     const collections = listCollections();
-    if (collections.length > 0) {
+    const workflows = listWorkflows();
+    if (collections.length > 0 || workflows.length > 0) {
       const choice = await select({
-        message: "Which collection?",
+        message: "Which collection or workflow?",
         theme: selectTheme,
         choices: [
-          ...collections.map((file) => ({ name: file, value: file })),
+          // Full relative paths as values (not bare filenames) so a
+          // collection and workflow sharing a filename can't resolve to the
+          // wrong one — resolveCollectionPath tries the literal path first.
+          ...collections.map((file) => ({
+            name: file,
+            value: join(".shimwire", "collections", file),
+          })),
+          ...(workflows.length > 0
+            ? [
+                new Separator("  ── workflows ──"),
+                ...workflows.map((file) => ({
+                  name: file,
+                  value: join(".shimwire", "workflows", file),
+                })),
+              ]
+            : []),
           new Separator(),
           { name: "(enter a path manually)", value: "__manual__" },
         ],

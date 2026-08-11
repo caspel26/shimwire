@@ -185,3 +185,82 @@ path = "/does-not-exist"
     expect(existsSync(join(cwd, "should-not-be-used.html"))).toBe(false);
   });
 });
+
+describe("shimwire run (standalone workflow)", () => {
+  test("runs a .shimwire/workflows/<name>.toml directly, without wrapping it in a collection", async () => {
+    const cwd = setupProject();
+    mkdirSync(join(cwd, ".shimwire", "workflows"), { recursive: true });
+    writeFileSync(
+      join(cwd, ".shimwire", "workflows", "create_user_flow.toml"),
+      `[[request]]
+id = "create_user"
+method = "POST"
+path = "/users"
+[request.body]
+name = "test"
+
+[[request]]
+id = "get_user"
+method = "GET"
+path = "/users/{{steps.create_user.response.id}}"
+depends_on = ["create_user"]
+`
+    );
+
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "run",
+        CLI_PATH,
+        "run",
+        ".shimwire/workflows/create_user_flow.toml",
+        "--env",
+        "dev",
+        "--fail-on-error",
+      ],
+      { cwd, stdout: "pipe", stderr: "pipe" }
+    );
+    const [stdout, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("create_user");
+    expect(stdout).toContain("get_user");
+    expect(stdout).toContain("/users/42");
+  });
+
+  test("resolves a bare workflow filename via .shimwire/workflows/ the same way collections resolve", async () => {
+    const cwd = setupProject();
+    mkdirSync(join(cwd, ".shimwire", "workflows"), { recursive: true });
+    writeFileSync(
+      join(cwd, ".shimwire", "workflows", "quick_check.toml"),
+      `[[request]]
+id = "get_user"
+method = "GET"
+path = "/users/42"
+`
+    );
+
+    const proc = Bun.spawn(
+      ["bun", "run", CLI_PATH, "run", "quick_check.toml", "--env", "dev", "--fail-on-error"],
+      { cwd, stdout: "pipe", stderr: "pipe" }
+    );
+    const [stdout, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("get_user");
+  });
+
+  test("errors clearly when neither a collection nor a workflow matches", async () => {
+    const cwd = setupProject();
+
+    const proc = Bun.spawn(["bun", "run", CLI_PATH, "run", "nope.toml", "--env", "dev"], {
+      cwd,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stderr, exitCode] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("Collection or workflow not found");
+  });
+});

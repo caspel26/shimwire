@@ -12,7 +12,7 @@ const program = new Command();
 program
   .name("shimwire")
   .description("OpenAPI-driven mock server and HTTP test runner")
-  .version("0.2.0");
+  .version("0.3.0");
 
 registerInitCommand(program);
 registerRunCommand(program);

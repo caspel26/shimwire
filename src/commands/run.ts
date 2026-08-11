@@ -3,7 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { Command } from "commander";
 import { filterToTarget, topologicalSort } from "../core/collection/depGraph.ts";
-import { loadCollection, loadEnvironment } from "../core/collection/parser.ts";
+import { loadEnvironment, loadRunnable } from "../core/collection/parser.ts";
 import { withErrorHandling } from "../core/cliError.ts";
 import { loadConfig } from "../core/config/config.ts";
 import { executeStep } from "../core/executor/httpClient.ts";
@@ -22,9 +22,13 @@ export interface RunOptions {
 
 function resolveCollectionPath(input: string): string {
   if (existsSync(input)) return input;
-  const scoped = join(process.cwd(), ".shimwire", "collections", input);
-  if (existsSync(scoped)) return scoped;
-  throw new Error(`Collection not found: ${input}`);
+  const scopedCollection = join(process.cwd(), ".shimwire", "collections", input);
+  if (existsSync(scopedCollection)) return scopedCollection;
+  const scopedWorkflow = join(process.cwd(), ".shimwire", "workflows", input);
+  if (existsSync(scopedWorkflow)) return scopedWorkflow;
+  throw new Error(
+    `Collection or workflow not found: ${input} (checked .shimwire/collections/ and .shimwire/workflows/)`
+  );
 }
 
 function resolveEnvPath(name: string): string {
@@ -42,7 +46,7 @@ export async function runCollection(collectionArg: string, options: RunOptions):
   const collectionPath = resolveCollectionPath(collectionArg);
   const envPath = resolveEnvPath(options.env);
 
-  const collection = await loadCollection(collectionPath);
+  const collection = await loadRunnable(collectionPath);
   const env = await loadEnvironment(envPath);
 
   let steps = topologicalSort(collection.request);
@@ -98,10 +102,10 @@ export async function runCollection(collectionArg: string, options: RunOptions):
 export function registerRunCommand(program: Command): void {
   program
     .command("run")
-    .description("Run a request collection against a real backend")
+    .description("Run a request collection (or a standalone workflow) against a real backend")
     .argument(
       "<collection>",
-      "path to a collection .toml file (or a name under .shimwire/collections/)"
+      "path to a collection or workflow .toml file (or a name under .shimwire/collections/ or .shimwire/workflows/)"
     )
     .option(
       "-e, --env <name>",

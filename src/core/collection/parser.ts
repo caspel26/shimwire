@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import * as toml from "smol-toml";
 import { ZodError } from "zod";
 import {
@@ -81,6 +81,31 @@ export async function loadCollection(path: string): Promise<Collection> {
   validateIds(path, requests);
 
   return { ...result.data, request: requests };
+}
+
+// A workflow file is just a request list — no [meta]/base_url of its own —
+// so it can't be run directly the way a collection can, `run` needs
+// *something* to resolve {{env.base_url}} against. `loadRunnable` detects
+// which shape a given file actually is (by whether it has a [meta] table)
+// and synthesizes a minimal Collection for a bare workflow, giving it
+// {{env.base_url}} the same as any hand-written collection would have —
+// this is what makes `shimwire run authentication_flow.toml` work without
+// wrapping every workflow in a throwaway collection just to run it standalone.
+export async function loadRunnable(path: string): Promise<Collection> {
+  const raw = await readFile(path, "utf8");
+  const parsed = toml.parse(raw);
+  const isCollection =
+    typeof parsed === "object" && parsed !== null && "meta" in (parsed as Record<string, unknown>);
+  if (isCollection) {
+    return loadCollection(path);
+  }
+
+  const workflow = await loadWorkflow(path);
+  validateIds(path, workflow.request);
+  return {
+    meta: { name: basename(path).replace(/\.toml$/, ""), base_url: "{{env.base_url}}" },
+    request: workflow.request,
+  };
 }
 
 export async function loadEnvironment(path: string): Promise<Environment> {

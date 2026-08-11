@@ -6,6 +6,7 @@ import {
   CollectionParseError,
   loadCollection,
   loadEnvironment,
+  loadRunnable,
 } from "../../src/core/collection/parser.ts";
 
 const FIXTURES = join(import.meta.dir, "..", "fixtures");
@@ -152,6 +153,52 @@ path = "/users/42"
         /couldn't load included workflow "missing_flow"/
       );
     });
+  });
+});
+
+describe("loadRunnable", () => {
+  test("loads a real collection file (has [meta]) via loadCollection", async () => {
+    const collection = await loadRunnable(join(FIXTURES, "users.toml"));
+    expect(collection.meta.name).toBe("Users API");
+    expect(collection.request.map((r) => r.id)).toEqual(["create_user", "get_user"]);
+  });
+
+  test("synthesizes a runnable collection from a standalone workflow file", async () => {
+    const path = join(TMP, "authentication_flow.toml");
+    await Bun.write(
+      path,
+      `[[request]]
+id = "login"
+method = "POST"
+path = "/auth/login"
+
+[[request]]
+id = "refresh"
+method = "POST"
+path = "/auth/refresh"
+depends_on = ["login"]
+`
+    );
+
+    const collection = await loadRunnable(path);
+    expect(collection.meta.name).toBe("authentication_flow");
+    expect(collection.meta.base_url).toBe("{{env.base_url}}");
+    expect(collection.request.map((r) => r.id)).toEqual(["login", "refresh"]);
+  });
+
+  test("rejects a standalone workflow with a bad depends_on the same way a collection would", async () => {
+    const path = join(TMP, "bad-workflow.toml");
+    await Bun.write(
+      path,
+      `[[request]]
+id = "a"
+method = "GET"
+path = "/a"
+depends_on = ["nope"]
+`
+    );
+
+    await expect(loadRunnable(path)).rejects.toThrow(CollectionParseError);
   });
 });
 

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-11
+
+### Added
+
+- **Standalone workflow execution** — `shimwire run` now works directly on a
+  `.shimwire/workflows/<name>.toml` file, not just collections that `include`
+  one. `run` detects which shape a file is (a collection has `[meta]`, a
+  workflow doesn't) and, for a bare workflow, resolves `{{env.base_url}}`
+  from `--env` the same way a hand-written collection would. Path resolution
+  now checks `.shimwire/workflows/` alongside `.shimwire/collections/`, so
+  `shimwire run authentication_flow.toml` just works.
+- `shimwire cli` → "Run" now lists workflows alongside collections in the
+  picker.
+
 ## [0.2.0] - 2026-08-11
 
 ### Added

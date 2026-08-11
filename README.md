@@ -212,7 +212,7 @@ Don't know the ids offhand? `shimwire cli` → "Workflow" lists every operation 
 
 ### `shimwire run <collection>`
 
-Runs a collection against a real backend.
+Runs a collection — or a standalone workflow — against a real backend.
 
 | Flag                  | Default | Description                                                                                                              |
 | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -221,6 +221,16 @@ Runs a collection against a real backend.
 | `--fail-on-error`     | off     | Exit non-zero if any request fails — for CI.                                                                             |
 | `-k, --insecure`      | off     | Skip TLS certificate verification.                                                                                       |
 | `-r, --report <path>` | —       | Write an HTML report (full request/response detail, sensitive headers redacted). Falls back to `[run].report` in config. |
+
+A workflow (`.shimwire/workflows/<name>.toml`) can be run directly, the same as any collection — no need to wrap it in one just to try it out:
+
+```bash
+shimwire run .shimwire/workflows/authentication_flow.toml --env dev
+# or, resolved the same way collection names are:
+shimwire run authentication_flow.toml --env dev
+```
+
+`run` detects which shape a file is (a collection has `[meta]`, a workflow doesn't) and, for a bare workflow, resolves `{{env.base_url}}` from `--env` exactly like a hand-written collection would.
 
 ## ⚙️ Configuration
 
@@ -336,6 +346,8 @@ Authorization = "Bearer {{steps.login.response.token}}"
 ```
 
 A workflow is just a request list — no `[meta]`/`base_url` of its own, it inherits the including collection's. Included requests run before the collection's own by default, and their ids/steps work exactly like any other request (`depends_on`, `steps.login.response.*`, etc.) — `run` doesn't know or care that `login` came from a different file.
+
+A workflow doesn't have to be included to be useful — `shimwire run` can execute one directly (see [`shimwire run`](#shimwire-run-collection)), so a self-contained task like "authenticate and create a user" can be built as its own workflow and run standalone, without ever wrapping it in a collection.
 
 <p align="center">
   <img src="assets/workflow-demo.gif" alt="Terminal recording of a shimwire collection including a reusable authentication_flow workflow, then running it — login executes first and its response feeds get_user's Authorization header." width="700">

@@ -1,6 +1,6 @@
 {
   "name": "shimwire",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "OpenAPI-driven mock server and git-friendly HTTP test runner",
   "module": "src/cli.ts",
   "type": "module",
