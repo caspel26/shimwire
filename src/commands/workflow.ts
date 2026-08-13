@@ -142,15 +142,17 @@ export function registerWorkflowCommand(program: Command): void {
       "skip TLS certificate verification while fetching --from (self-signed/local dev certs)"
     )
     .action(
-      withErrorHandling(async (opts: WorkflowOptions & { endpoints?: unknown }) => {
-        const endpoints =
-          typeof opts.endpoints === "string"
-            ? opts.endpoints
-                .split(",")
-                .map((id) => id.trim())
-                .filter(Boolean)
-            : undefined;
-        await runWorkflow({ ...opts, endpoints });
-      })
+      withErrorHandling(
+        async (opts: Omit<WorkflowOptions, "endpoints"> & { endpoints?: unknown }) => {
+          const endpoints =
+            typeof opts.endpoints === "string"
+              ? opts.endpoints
+                  .split(",")
+                  .map((id) => id.trim())
+                  .filter(Boolean)
+              : undefined;
+          await runWorkflow({ ...opts, endpoints });
+        }
+      )
     );
 }

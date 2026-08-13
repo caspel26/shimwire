@@ -66,7 +66,7 @@ function step(n: number, tool: string, why: string, label: string): void {
   console.log(pc.dim(`   ${label}`));
 }
 
-async function call<T>(name: string, args: object): Promise<T> {
+async function call<T>(name: string, args: Record<string, unknown>): Promise<T> {
   const result = (await client.callTool({ name, arguments: args })) as ToolTextResult;
   return JSON.parse(result.content[0]?.text ?? "null") as T;
 }
