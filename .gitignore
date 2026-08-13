@@ -29,3 +29,6 @@ dist/
 # Test artifacts
 coverage/
 *.shimwire
+
+# Local session handoff notes
+HANDOFF.md
