@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { notEmpty, validPort } from "../../src/commands/interactive.ts";
+import { mcpConfigSnippet, notEmpty, validPort } from "../../src/commands/interactive.ts";
 
 describe("notEmpty", () => {
   test("accepts non-blank input", () => {
@@ -25,5 +25,14 @@ describe("validPort", () => {
     expect(validPort("-1")).not.toBe(true);
     expect(validPort("65536")).not.toBe(true);
     expect(validPort("80.5")).not.toBe(true);
+  });
+});
+
+describe("mcpConfigSnippet", () => {
+  test("produces a valid mcpServers config invoking `bunx shimwire mcp`", () => {
+    const parsed = JSON.parse(mcpConfigSnippet());
+    expect(parsed).toEqual({
+      mcpServers: { shimwire: { command: "bunx", args: ["shimwire", "mcp"] } },
+    });
   });
 });

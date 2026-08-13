@@ -164,7 +164,7 @@ Scaffolds `.shimwire/{collections,env,mock}/`, a starter `.shimwire/config.toml`
 Launches an interactive menu — pick "Mock", "Generate", "Workflow", "Run", or "Init" and answer a few validated prompts instead of remembering flags. Pre-fills answers from `.shimwire/config.toml` when present. Picking "Mock" starts the server in the background and returns to the menu, so you can immediately pick "Run" to test against it; after "Generate" it offers to run the collection it just wrote; "Workflow" lists every endpoint in a spec as a checkbox list to build a `.shimwire/workflows/<name>.toml` without knowing ids up front. Useful when you're exploring a new spec rather than scripting something repeatable.
 
 <p align="center">
-  <img src="assets/cli-demo.gif" alt="Terminal recording of the shimwire cli guided menu: scaffolding a project, starting a mock server, generating a collection, and running it — all from prompts instead of flags." width="700">
+  <img src="assets/cli-demo.gif" alt="Terminal recording of the shimwire cli guided menu: scaffolding a project, starting a mock server, generating a collection, running it, saving a workflow, and showing the MCP client config — all from prompts instead of flags." width="700">
 </p>
 
 ### `shimwire mock [spec]`

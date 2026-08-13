@@ -79,6 +79,16 @@ const selectTheme = {
   },
 };
 
+// Pure so it's unit-testable without spinning up the prompt loop — same
+// pattern as notEmpty/validPort below.
+export function mcpConfigSnippet(): string {
+  return JSON.stringify(
+    { mcpServers: { shimwire: { command: "bunx", args: ["shimwire", "mcp"] } } },
+    null,
+    2
+  );
+}
+
 export const notEmpty = (label: string) => (value: string) =>
   value.trim().length > 0 || `${label} can't be empty.`;
 
@@ -363,6 +373,27 @@ async function promptRun(preset?: string): Promise<void> {
   lastCollection = collection;
 }
 
+// Unlike Mock, `mcp` can't be launched from inside this menu — it hands its
+// own stdio over to the MCP JSON-RPC transport, which would collide with
+// inquirer's prompts reading the same stdin. So this is informational only:
+// print the config snippet a client (Claude Desktop, Claude Code, etc.)
+// needs, and point at how to run the server outside the menu.
+async function promptMcpInfo(): Promise<void> {
+  console.log(pc.bold("  Add shimwire as an MCP server:\n"));
+  console.log(
+    boxen(mcpConfigSnippet(), {
+      padding: { left: 2, right: 2, top: 0, bottom: 0 },
+      borderStyle: "round",
+      borderColor: "#8b5cf6",
+    })
+  );
+  log.dim(
+    "\n  Paste that into the client's MCP config, then it can call shimwire's\n" +
+      "  spec/collection/workflow tools directly. Run it by hand with:\n" +
+      pc.bold("    shimwire mcp")
+  );
+}
+
 export async function closeRunningServers(): Promise<void> {
   if (runningServers.length === 0) return;
   log.dim(`\nStopping ${runningServers.length} mock server(s)...`);
@@ -417,6 +448,11 @@ export function registerInteractiveCommand(program: Command): void {
                 value: "init",
                 description: "Scaffold a .shimwire/ project in this directory",
               },
+              {
+                name: "🔌 MCP",
+                value: "mcp",
+                description: "Show the config snippet to connect an AI client",
+              },
               new Separator(),
               { name: "🚪 Exit", value: "exit" },
             ],
@@ -435,6 +471,7 @@ export function registerInteractiveCommand(program: Command): void {
             else if (action === "workflow") await promptWorkflow();
             else if (action === "run") await promptRun();
             else if (action === "init") await runInit();
+            else if (action === "mcp") await promptMcpInfo();
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             log.error(`Error: ${message}`);

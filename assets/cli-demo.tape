@@ -3,7 +3,7 @@
 #   vhs assets/cli-demo.tape
 # Run from the repo root. This is a real, unmodified `shimwire cli` session
 # (the guided interactive menu) against tests/fixtures/petstore.openapi.yaml.
-# Menu order: Mock, Generate, Workflow, Run, Init, (separator), Exit.
+# Menu order: Mock, Generate, Workflow, Run, Init, MCP, (separator), Exit.
 
 Output "assets/cli-demo.gif"
 
@@ -50,7 +50,7 @@ Sleep 800ms
 
 # back at the menu (nothing running yet) — exit so we can point the
 # freshly-scaffolded dev env at our mock port
-Down 5
+Down 6
 Sleep 400ms
 Enter
 Sleep 800ms
@@ -146,8 +146,16 @@ Sleep 1500ms
 Enter
 Sleep 800ms
 
-# exit — stops the background mock server too
+# back at the menu — MCP: show the connection config for an AI client
 Down 5
+Sleep 400ms
+Enter
+Sleep 1200ms
+Enter
+Sleep 800ms
+
+# exit — stops the background mock server too
+Down 6
 Sleep 400ms
 Enter
 Sleep 1500ms
