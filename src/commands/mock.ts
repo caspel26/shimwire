@@ -2,13 +2,14 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Command } from "commander";
 import type { FastifyInstance } from "fastify";
+import type { OpenAPIV3 } from "openapi-types";
 import { withErrorHandling } from "../core/cliError.ts";
 import { loadConfig } from "../core/config/config.ts";
 import { loadOpenApiSpec, listOperations } from "../core/openapi/loader.ts";
 import { log } from "../core/logger.ts";
 import { loadOverrides } from "../mockServer/overrides.ts";
 import { formatMockRequestLog } from "../mockServer/requestLog.ts";
-import { buildMockServer } from "../mockServer/routerBuilder.ts";
+import { buildMockServer, type MockRequestLogEntry } from "../mockServer/routerBuilder.ts";
 
 export interface MockOptions {
   port?: string;
@@ -19,16 +20,36 @@ export interface MockOptions {
   watch?: boolean;
 }
 
+// Split out from runMock so a caller that doesn't want CLI-style log.* side
+// effects — the MCP start_mock tool, see src/mcp/server.ts — can still get
+// the same spec/config/overrides resolution and EADDRINUSE handling instead
+// of forking that logic.
+export interface StartMockOptions {
+  port?: string | number;
+  overrides?: string;
+  allowLocal?: boolean;
+  insecure?: boolean;
+  cors?: boolean;
+  onRequestLogged?: (entry: MockRequestLogEntry) => void;
+}
+
+export interface StartMockResult {
+  app: FastifyInstance;
+  port: number;
+  spec: OpenAPIV3.Document;
+  overridesPath?: string;
+}
+
 function resolveOverridesPath(explicit: string | undefined): string | undefined {
   if (explicit) return explicit;
   const defaultPath = join(process.cwd(), ".shimwire", "mock", "overrides.toml");
   return existsSync(defaultPath) ? defaultPath : undefined;
 }
 
-export async function runMock(
+export async function startMockServer(
   specArg: string | undefined,
-  options: MockOptions
-): Promise<FastifyInstance> {
+  options: StartMockOptions
+): Promise<StartMockResult> {
   const config = (await loadConfig()).mock ?? {};
 
   const specPath = specArg ?? config.spec;
@@ -39,21 +60,16 @@ export async function runMock(
   const allowLocal = options.allowLocal ?? config.allow_local ?? false;
   const insecure = options.insecure ?? config.insecure ?? false;
   const cors = options.cors ?? config.cors ?? true;
-  const watch = options.watch ?? config.watch ?? true;
   const overridesOption = options.overrides ?? config.overrides;
 
-  log.dim(`Loading spec from ${specPath}...`);
   const spec = await loadOpenApiSpec(specPath, { allowLocal, insecure });
 
   const overridesPath = resolveOverridesPath(overridesOption);
   const overrides = overridesPath ? await loadOverrides(overridesPath) : [];
-  if (overridesPath) {
-    log.dim(`Using overrides from ${overridesPath}`);
-  }
 
   const app = buildMockServer(spec, overrides, {
     cors,
-    onRequestLogged: watch ? (entry) => log.info(formatMockRequestLog(entry)) : undefined,
+    onRequestLogged: options.onRequestLogged,
   });
   try {
     await app.listen({ port });
@@ -62,6 +78,30 @@ export async function runMock(
       throw new Error(`Port ${port} is already in use — pass --port to use a different one.`);
     }
     throw err;
+  }
+
+  return { app, port, spec, overridesPath };
+}
+
+export async function runMock(
+  specArg: string | undefined,
+  options: MockOptions
+): Promise<FastifyInstance> {
+  const config = (await loadConfig()).mock ?? {};
+  const watch = options.watch ?? config.watch ?? true;
+
+  log.dim(`Loading spec from ${specArg ?? config.spec ?? "(unset)"}...`);
+  const { app, port, spec, overridesPath } = await startMockServer(specArg, {
+    port: options.port,
+    overrides: options.overrides,
+    allowLocal: options.allowLocal,
+    insecure: options.insecure,
+    cors: options.cors,
+    onRequestLogged: watch ? (entry) => log.info(formatMockRequestLog(entry)) : undefined,
+  });
+
+  if (overridesPath) {
+    log.dim(`Using overrides from ${overridesPath}`);
   }
 
   log.success(`Mock server running on http://localhost:${port}`);

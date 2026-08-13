@@ -7,11 +7,20 @@ import pkg from "../../package.json" with { type: "json" };
 import { loadEnvironment, loadRunnable } from "../core/collection/parser.ts";
 import { executeCollection } from "../core/executor/collectionRunner.ts";
 import { listOperationsWithIds } from "../core/openapi/generate.ts";
-import { loadOpenApiSpec } from "../core/openapi/loader.ts";
+import { listOperations, loadOpenApiSpec } from "../core/openapi/loader.ts";
 import { performGenerate } from "../commands/generate.ts";
 import { performInit } from "../commands/init.ts";
+import { startMockServer } from "../commands/mock.ts";
 import { resolveCollectionPath, resolveEnvPath } from "../commands/run.ts";
 import { performWorkflow } from "../commands/workflow.ts";
+import {
+  createMockInstance,
+  getMockInstance,
+  listMockInstances,
+  type MockInstance,
+  recordMockRequest,
+  stopMockInstance,
+} from "./mockRegistry.ts";
 
 // Every tool here calls only the *performX* / core functions, never the CLI
 // wrapper functions that call log.* — those write to console.log, i.e.
@@ -288,6 +297,126 @@ export function createMcpServer(): McpServer {
             steps: reportEntries,
           });
         });
+      } catch (err) {
+        return errorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
+    "start_mock",
+    {
+      title: "Start a mock server",
+      description:
+        "Start a fake-but-schema-valid mock server from a spec and leave it running in the background — same engine as `shimwire mock`. Returns an id; pass it to stop_mock/get_mock_requests. Runs until stop_mock is called or this MCP server process exits (every mock it started is closed on shutdown).",
+      inputSchema: {
+        ...specArgs,
+        port: z.number().int().optional().describe("Port to listen on (default: 4000)"),
+        overrides: z
+          .string()
+          .optional()
+          .describe(
+            "Path to an overrides.toml (defaults to .shimwire/mock/overrides.toml if present)"
+          ),
+        cors: z.boolean().optional().describe("Send permissive CORS headers (default: true)"),
+      },
+    },
+    async ({ spec, cwd, port, overrides, allowLocal, insecure, cors }) => {
+      try {
+        return await withCwd(cwd, async () => {
+          // buildMockServer wires onRequestLogged in at construction time —
+          // before that returns, there's nothing to log into yet. `ref` is
+          // filled in synchronously right after startMockServer resolves (no
+          // `await` in between), so no request can slip through the gap.
+          const ref: { instance?: MockInstance } = {};
+          const result = await startMockServer(spec, {
+            port,
+            overrides,
+            allowLocal,
+            insecure,
+            cors,
+            onRequestLogged: (entry) => {
+              if (ref.instance) recordMockRequest(ref.instance, entry);
+            },
+          });
+          const instance = createMockInstance({ port: result.port, spec, app: result.app });
+          ref.instance = instance;
+          return jsonResult({
+            id: instance.id,
+            port: instance.port,
+            url: `http://localhost:${instance.port}`,
+            endpointCount: listOperations(result.spec).length,
+          });
+        });
+      } catch (err) {
+        return errorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
+    "stop_mock",
+    {
+      title: "Stop a mock server",
+      description: "Stop a mock server previously started with start_mock.",
+      inputSchema: { id: z.string().describe("id returned by start_mock") },
+    },
+    async ({ id }) => {
+      try {
+        const stopped = await stopMockInstance(id);
+        if (!stopped) return errorResult(new Error(`No running mock with id "${id}"`));
+        return jsonResult({ stopped: true, id });
+      } catch (err) {
+        return errorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
+    "list_mocks",
+    {
+      title: "List running mock servers",
+      description: "List every mock server started with start_mock that hasn't been stopped.",
+      inputSchema: {},
+    },
+    async () => {
+      try {
+        const mocks = listMockInstances().map(({ id, port, spec, startedAt, requestLog }) => ({
+          id,
+          port,
+          spec,
+          startedAt,
+          requestCount: requestLog.length,
+        }));
+        return jsonResult({ mocks });
+      } catch (err) {
+        return errorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
+    "get_mock_requests",
+    {
+      title: "Read a mock server's recent traffic",
+      description:
+        "Return the most recent requests a start_mock-started server has handled (method, path, status, duration) — the pull-based equivalent of `shimwire mock`'s live --watch log, which can't be streamed over this transport.",
+      inputSchema: {
+        id: z.string().describe("id returned by start_mock"),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Most recent N requests to return (default: all buffered, up to 200)"),
+      },
+    },
+    async ({ id, limit }) => {
+      try {
+        const instance = getMockInstance(id);
+        if (!instance) return errorResult(new Error(`No running mock with id "${id}"`));
+        const log = limit ? instance.requestLog.slice(-limit) : instance.requestLog;
+        return jsonResult({ requests: log });
       } catch (err) {
         return errorResult(err);
       }

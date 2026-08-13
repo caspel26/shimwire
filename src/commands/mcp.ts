@@ -1,6 +1,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { Command } from "commander";
 import { createMcpServer } from "../mcp/server.ts";
+import { closeAllMockInstances } from "../mcp/mockRegistry.ts";
 
 export async function runMcp(): Promise<void> {
   // Belt-and-suspenders on top of the tools already avoiding log.* directly
@@ -12,6 +13,15 @@ export async function runMcp(): Promise<void> {
   // touch protocol traffic.
   console.log = (...args: unknown[]) => console.error(...args);
   console.info = (...args: unknown[]) => console.error(...args);
+
+  // A mock started via start_mock outlives the tool call that started it —
+  // nothing else stops it if the client just disconnects, so tie its
+  // lifetime to this process's instead.
+  const shutdown = (): void => {
+    void closeAllMockInstances().finally(() => process.exit(0));
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 
   const server = createMcpServer();
   const transport = new StdioServerTransport();

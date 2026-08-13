@@ -37,11 +37,15 @@ describe("shimwire MCP server (in-process)", () => {
         [
           "create_workflow",
           "generate_collection",
+          "get_mock_requests",
           "init_project",
           "list_collections",
+          "list_mocks",
           "list_workflows",
           "load_spec",
           "run_collection",
+          "start_mock",
+          "stop_mock",
         ].sort()
       );
     } finally {
@@ -259,6 +263,64 @@ path = "/users/42"
       }
     } finally {
       server.stop(true);
+    }
+  });
+
+  test("start_mock/get_mock_requests/stop_mock: full lifecycle of an MCP-started mock", async () => {
+    const { client, close } = await connectedClient();
+    try {
+      const started = parseJsonContent(
+        await client.callTool({
+          name: "start_mock",
+          arguments: { spec: join(FIXTURES, "petstore.openapi.yaml"), port: 4930 },
+        })
+      ) as { id: string; port: number; url: string; endpointCount: number };
+
+      expect(started.port).toBe(4930);
+      expect(started.url).toBe("http://localhost:4930");
+      expect(started.endpointCount).toBe(3);
+
+      const listed = parseJsonContent(
+        await client.callTool({ name: "list_mocks", arguments: {} })
+      ) as { mocks: { id: string; port: number }[] };
+      expect(listed.mocks.map((m) => m.id)).toContain(started.id);
+
+      const res = await fetch("http://localhost:4930/pets");
+      expect(res.status).toBe(200);
+
+      const requests = parseJsonContent(
+        await client.callTool({ name: "get_mock_requests", arguments: { id: started.id } })
+      ) as { requests: { method: string; path: string; status: number }[] };
+      expect(requests.requests).toEqual([
+        expect.objectContaining({ method: "GET", path: "/pets", status: 200 }),
+      ]);
+
+      const stopped = parseJsonContent(
+        await client.callTool({ name: "stop_mock", arguments: { id: started.id } })
+      ) as { stopped: boolean };
+      expect(stopped.stopped).toBe(true);
+
+      await expect(fetch("http://localhost:4930/pets")).rejects.toThrow();
+
+      const afterStop = parseJsonContent(
+        await client.callTool({ name: "list_mocks", arguments: {} })
+      ) as { mocks: { id: string }[] };
+      expect(afterStop.mocks.map((m) => m.id)).not.toContain(started.id);
+    } finally {
+      await close();
+    }
+  });
+
+  test("stop_mock reports a clean tool error for an unknown id", async () => {
+    const { client, close } = await connectedClient();
+    try {
+      const result = await client.callTool({
+        name: "stop_mock",
+        arguments: { id: "no-such-id" },
+      });
+      expect(result.isError).toBe(true);
+    } finally {
+      await close();
     }
   });
 

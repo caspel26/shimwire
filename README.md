@@ -250,18 +250,22 @@ The recording below isn't a shimwire subcommand — it's [`assets/mcp-demo-clien
   <img src="assets/mcp-demo.gif" alt="assets/mcp-demo-client.ts, a stand-in AI agent, driving the real shimwire mcp server: load_spec discovers a login and get_user operation, generate_collection writes a collection and auto-extracts the login into a workflow, run_collection executes both and reports 2 passed." width="700">
 </p>
 
-| Tool                                  | Does                                                                                                                   |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `load_spec`                           | Parse a spec, list every operation's id/method/path — see what's actually available before generating anything.        |
-| `init_project`                        | Scaffold `.shimwire/`.                                                                                                 |
-| `generate_collection`                 | Same as `shimwire generate` — full collection from a spec, login auto-detected into a workflow.                        |
-| `create_workflow`                     | Same as `shimwire workflow` — hand-picked endpoints saved as a named workflow.                                         |
-| `list_collections` / `list_workflows` | See what's already in the project.                                                                                     |
-| `run_collection`                      | Run a collection or workflow, get structured pass/fail back per step — so the result can be checked, not just assumed. |
+| Tool                                  | Does                                                                                                                                                                    |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `load_spec`                           | Parse a spec, list every operation's id/method/path — see what's actually available before generating anything.                                                         |
+| `init_project`                        | Scaffold `.shimwire/`.                                                                                                                                                  |
+| `generate_collection`                 | Same as `shimwire generate` — full collection from a spec, login auto-detected into a workflow.                                                                         |
+| `create_workflow`                     | Same as `shimwire workflow` — hand-picked endpoints saved as a named workflow.                                                                                          |
+| `list_collections` / `list_workflows` | See what's already in the project.                                                                                                                                      |
+| `run_collection`                      | Run a collection or workflow, get structured pass/fail back per step — so the result can be checked, not just assumed.                                                  |
+| `start_mock`                          | Start a mock server from a spec — same engine as `shimwire mock` — and leave it running in the background. Returns an id.                                               |
+| `list_mocks`                          | See every mock server started this session that hasn't been stopped.                                                                                                    |
+| `get_mock_requests`                   | Pull a mock's recent traffic (method/path/status/duration) — the request/response equivalent of `--watch`'s live log, since that can't be streamed over this transport. |
+| `stop_mock`                           | Stop a mock server started with `start_mock`, by id.                                                                                                                    |
 
 Every tool accepts an optional `cwd`, since an MCP server is typically one long-running process reused across projects/sessions rather than started fresh per-project the way a CLI invocation is. Tool calls are executed one at a time on the server regardless of client pipelining — JSON-RPC over stdio allows a client to fire several calls without waiting for a response first, and two calls touching different directories at once would otherwise race on the server process's working directory. A client that needs one call's result before issuing the next (e.g. `generate_collection`'s file existing before `run_collection` reads it) still has to await it first, same as any RPC API — the server can't infer that dependency on its own.
 
-Mock server lifecycle (`start_mock`/`stop_mock`) isn't exposed yet — a background server surviving across tool calls needs its own session-lifecycle design, deferred for now.
+Every mock started with `start_mock` is tied to the MCP server process's own lifetime — they're all closed automatically if the process exits (`SIGINT`/`SIGTERM`), so a client disconnecting doesn't leave orphaned servers behind. `start_mock` doesn't take a `watch` option the way `shimwire mock --watch` does — stdout on this transport _is_ the JSON-RPC channel, so request activity can't be printed live; `get_mock_requests` is the pull-based alternative instead.
 
 ## ⚙️ Configuration
 
