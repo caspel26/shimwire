@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-08-13
+
+### Added
+
+- **Mock override capabilities** — `.shimwire/mock/overrides.toml` gains
+  three independent additions: sequenced responses (`sequence`/
+  `sequence_mode`, for testing retry logic — fail N times, then succeed),
+  wildcard/regex path matching (`*`, `**`, `path_regex`, so one override
+  can cover a family of routes instead of exactly one), and `when`
+  conditions on query strings/headers (`query.<name>`/`header.<name>`
+  prefixes) in addition to the existing path-param match.
+- **MCP mock server lifecycle** — `shimwire mcp` gains `start_mock`,
+  `stop_mock`, `list_mocks`, and `get_mock_requests`, so an AI client can
+  start and manage a mock server across a session instead of only being
+  able to inspect specs/collections. Every mock started this way is tied
+  to the MCP process's own lifetime (closed on `SIGINT`/`SIGTERM`), and
+  `get_mock_requests` is a pull-based traffic log — `--watch`'s live
+  printing can't be reused since stdout on this transport _is_ the
+  JSON-RPC channel.
+- `shimwire cli`'s guided menu gains a "🔌 MCP" entry showing the
+  ready-to-paste client config snippet (it can't launch `mcp` itself from
+  inside the menu — that would hand stdio to the JSON-RPC transport,
+  colliding with the menu's own prompts).
+
+### Fixed
+
+- Two pre-existing `tsc --noEmit` errors, found while re-verifying the
+  above: an incorrect type override in `workflow.ts`'s CLI action handler,
+  and an `args: object` param in `assets/mcp-demo-client.ts` that didn't
+  satisfy the MCP SDK's expected argument type.
+
 ## [0.4.1] - 2026-08-11
 
 ### Fixed
