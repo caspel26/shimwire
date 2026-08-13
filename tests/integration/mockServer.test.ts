@@ -143,4 +143,82 @@ describe("mock server", () => {
     const res = await app.inject({ method: "GET", url: "/pets" });
     expect(res.statusCode).toBe(200);
   });
+
+  test("sequence steps advance per call, then repeat the last step by default", async () => {
+    const app = await buildApp([
+      {
+        path: "/pets/{id}",
+        method: "GET",
+        sequence: [{ status: 200 }, { status: 500 }, { status: 200 }],
+      },
+    ]);
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const res = await app.inject({ method: "GET", url: "/pets/abc-123" });
+      statuses.push(res.statusCode);
+    }
+
+    expect(statuses).toEqual([200, 500, 200, 200, 200]);
+  });
+
+  test("sequence_mode: cycle wraps back to the first step instead of repeating the last", async () => {
+    const app = await buildApp([
+      {
+        path: "/pets/{id}",
+        method: "GET",
+        sequence: [{ status: 200 }, { status: 500 }],
+        sequence_mode: "cycle",
+      },
+    ]);
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const res = await app.inject({ method: "GET", url: "/pets/abc-123" });
+      statuses.push(res.statusCode);
+    }
+
+    expect(statuses).toEqual([200, 500, 200, 500]);
+  });
+
+  test("a wildcard path override matches any single segment in place of *", async () => {
+    const app = await buildApp([{ path: "/pets/*", method: "GET", status: 404 }]);
+    const res = await app.inject({ method: "GET", url: "/pets/abc-123" });
+    expect(res.statusCode).toBe(404);
+  });
+
+  test("path_regex is matched as a full regex against the spec's path template", async () => {
+    const app = await buildApp([{ path_regex: "/pets(/\\{id\\})?", method: "GET", status: 503 }]);
+
+    expect((await app.inject({ method: "GET", url: "/pets" })).statusCode).toBe(503);
+    expect((await app.inject({ method: "GET", url: "/pets/abc-123" })).statusCode).toBe(503);
+  });
+
+  test("when matches a query string value via the query. prefix", async () => {
+    const app = await buildApp([
+      { path: "/pets", method: "GET", status: 400, when: "query.broken == 'true'" },
+    ]);
+
+    const broken = await app.inject({ method: "GET", url: "/pets?broken=true" });
+    expect(broken.statusCode).toBe(400);
+
+    const normal = await app.inject({ method: "GET", url: "/pets" });
+    expect(normal.statusCode).toBe(200);
+  });
+
+  test("when matches a header value via the header. prefix, case-insensitively", async () => {
+    const app = await buildApp([
+      { path: "/pets", method: "GET", status: 401, when: "header.x-test == '1'" },
+    ]);
+
+    const flagged = await app.inject({
+      method: "GET",
+      url: "/pets",
+      headers: { "X-Test": "1" },
+    });
+    expect(flagged.statusCode).toBe(401);
+
+    const normal = await app.inject({ method: "GET", url: "/pets" });
+    expect(normal.statusCode).toBe(200);
+  });
 });

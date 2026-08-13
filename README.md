@@ -320,6 +320,41 @@ shimwire mock openapi.yaml --port 4000
   ```
 
 - Every other endpoint not covered by an override still returns schema-valid random data on every call, so your frontend gets realistic variety (different names, IDs, enum values) without you writing fixtures for all of it.
+- **Sequence a response across calls** — with `sequence`, each request advances to the next step; once it runs out, the last step repeats (`sequence_mode = "cycle"` wraps back to the first instead). Handy for testing retry logic — e.g. the first two calls fail, then it recovers:
+
+  ```toml
+  [[override]]
+  path = "/orders/{id}"
+  method = "POST"
+  sequence = [
+    { status = 500 },
+    { status = 500 },
+    { status = 200 },
+  ]
+  ```
+
+  A `sequence` entry can't also set a top-level `status`/`body` — put those in the steps instead.
+
+- **Match a family of paths** instead of one exact route — `*` in `path` stands in for exactly one segment (the same way `{id}` already does), `**` matches any number of segments, and `path_regex` is a full-regex escape hatch for anything a glob can't express:
+
+  ```toml
+  [[override]]
+  path = "/admin/**"
+  method = "GET"
+  status = 403              # lock down every admin sub-route at once
+  ```
+
+  An override needs exactly one of `path` or `path_regex`.
+
+- **`when` isn't limited to path params** — prefix the key with `query.` or `header.` to match a query string value or a request header (matched case-insensitively, like HTTP itself):
+
+  ```toml
+  [[override]]
+  path = "/users"
+  method = "GET"
+  status = 400
+  when = "query.broken == 'true'"   # only when ?broken=true is present
+  ```
 
 ## 📄 Collection format
 

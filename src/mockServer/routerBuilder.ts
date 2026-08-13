@@ -3,7 +3,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { OpenAPIV3 } from "openapi-types";
 import { listOperations } from "../core/openapi/loader.ts";
 import { generateFakeValue } from "../core/openapi/schemaFaker.ts";
-import { findOverride, type OverrideEntry } from "./overrides.ts";
+import { findOverride, resolveOverrideResponse, type OverrideEntry } from "./overrides.ts";
 
 function toFastifyPath(openApiPath: string): string {
   return openApiPath.replace(/\{([^}]+)\}/g, ":$1");
@@ -73,20 +73,23 @@ export function buildMockServer(
       url: fastifyPath,
       handler: async (request, reply) => {
         const params = request.params as Record<string, string>;
-        const override = findOverride(overrides, method, path, params);
+        const query = request.query as Record<string, string>;
+        const headers = request.headers as Record<string, string>;
+        const override = findOverride(overrides, method, path, { params, query, headers });
+        const resolved = override ? resolveOverrideResponse(override) : undefined;
 
-        if (override?.latency_ms) {
-          await new Promise((resolve) => setTimeout(resolve, override.latency_ms));
+        if (resolved?.latency_ms) {
+          await new Promise((resolve) => setTimeout(resolve, resolved.latency_ms));
         }
 
-        const status = override?.status ?? picked?.status;
+        const status = resolved?.status ?? picked?.status;
         if (status === undefined) {
           reply.status(204);
           return null;
         }
 
         reply.status(status);
-        if (override?.body !== undefined) return override.body;
+        if (resolved?.body !== undefined) return resolved.body;
         return picked?.schema ? generateFakeValue(picked.schema) : {};
       },
     });
